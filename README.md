@@ -55,23 +55,42 @@ cp .env.example .env.local
 
 and put the Application (client) ID in `EXPO_PUBLIC_MS_CLIENT_ID`.
 
-### 2. A development build
+### 2. A native build
 
-FTS5 is enabled via the `expo-sqlite` config plugin (§4.6), so **Expo Go will not
-work** — the app fails at first launch with `no such module: fts5`. You need a dev
-build:
+Feast is installed as a signed release APK, not through Expo Go — FTS5 is enabled via
+the `expo-sqlite` config plugin (§4.6), so Expo Go fails at launch with
+`no such module: fts5`.
+
+Day-to-day updating is [`docs/UPDATING.md`](docs/UPDATING.md): bump `VERSION_CODE`, run
+`publish-update.bat`, then press **Settings → Updates** on the phone. No cable.
+
+⚠️ **Back up `apps/mobile/feast-release.jks` and `keystore.properties` now.** They are
+gitignored and there is no recovery path — losing them means no future build can ever
+update the installed app without an uninstall, which deletes the library database.
+
+<details>
+<summary>Building from a fresh clone</summary>
+
+Restore `keystore.properties` and `feast-release.jks` into `apps/mobile/` first —
+without them the build falls back to a debug key and cannot update an existing install.
 
 ```bash
 pnpm install
-pnpm --filter @feast/mobile exec expo prebuild
-pnpm --filter @feast/mobile exec expo run:android   # or run:ios
 ```
 
-Then day to day:
+Then, from the repo root:
+
+```bash
+update.bat
+```
+
+For JS-only iteration against a running dev build:
 
 ```bash
 pnpm mobile
 ```
+
+</details>
 
 ---
 
