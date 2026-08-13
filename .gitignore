@@ -1,0 +1,39 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Expo
+.expo/
+android/
+ios/
+web-build/
+
+# ⚠️ SIGNING — NEVER COMMIT THESE, and never to a public repo especially.
+# `keystore.properties` holds the keystore password in plain text, and the .jks is the
+# key itself. Losing them means no future build can ever update the installed app
+# (Android refuses an APK signed by a different key), and the only way forward would be
+# uninstalling — which deletes the library database. Back both up somewhere private.
+*.jks
+keystore.properties
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Built APKs and update manifests — published to GitHub releases, not tracked in git.
+dist/
+
+# feast-ingest local state — contains a refresh token
+.feast/
+.feastrc.json
+.feast-fetch-cache.json
+
+# Secrets
+.env
+.env.local
+*.local
+
+# OS
+.DS_Store
+Thumbs.db

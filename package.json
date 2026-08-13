@@ -1,0 +1,20 @@
+{
+  "name": "feast",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Feast — a personal gospel-audio library: cloud-resident, pocket-cached.",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "build": "pnpm -r --if-present run build",
+    "test": "pnpm -r --if-present run test",
+    "mobile": "pnpm --filter @feast/mobile run start",
+    "ingest": "pnpm --filter @feast/ingest run dev"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    // Resolved from SOURCE, not from built output — see the note in tsconfig.base.json.
+    "paths": {
+      "@feast/core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../core/src/**/*.ts"]
+}

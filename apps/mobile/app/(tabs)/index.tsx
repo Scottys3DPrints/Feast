@@ -1,0 +1,297 @@
+import { Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { AlertTriangle, ChevronRight, Settings } from 'lucide-react-native';
+import { formatBytes, formatDuration } from '@feast/core';
+import {
+  continueListening,
+  countTalks,
+  fromFiveStar,
+  inProgress,
+  libraryTotals,
+  needsAttentionCount,
+  recentlyAdded,
+  upNext,
+  type TalkListItem,
+} from '../../src/db/queries';
+import { useDbQuery } from '../../src/db/useDbQuery';
+import { TalkRow, toNowPlaying } from '../../src/features/TalkRow';
+import { Artwork } from '../../src/ui/Artwork';
+import { Card, ProgressBar, SectionHeader, Text } from '../../src/ui/primitives';
+import { ResidencyBadge } from '../../src/ui/ResidencyBadge';
+import { useColors } from '../../src/ui/theme';
+import { radius, space } from '../../src/ui/tokens';
+import { usePlayer } from '../../src/player/store';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+/**
+ * Home — SPEC §15.2. "Vertical, scannable, no clutter."
+ *
+ * The Needs Attention strip at the bottom is how `My List/_Redownload` stops being a
+ * folder the user forgets about. It renders only when non-empty (§15.2), which is the
+ * whole reason it earns a permanent slot.
+ */
+export default function HomeScreen() {
+  const colors = useColors();
+  const router = useRouter();
+
+  const total = useDbQuery(() => countTalks(), []) ?? 0;
+  const cont = useDbQuery(() => continueListening(), []);
+  const next = useDbQuery(() => upNext(), []) ?? [];
+  const started = useDbQuery(() => inProgress(6, cont?.id), [cont?.id]) ?? [];
+  const recent = useDbQuery(() => recentlyAdded(), []) ?? [];
+  const fiveStar = useDbQuery(() => fromFiveStar(), []) ?? [];
+  const attention = useDbQuery(() => needsAttentionCount(), []) ?? 0;
+
+  if (total === 0) return <EmptyLibrary />;
+
+  return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: space.gutter,
+          height: 48,
+        }}
+      >
+        <Text variant="title1">{greeting()}</Text>
+        <Pressable
+          onPress={() => router.push('/settings')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
+          <Settings size={20} color={colors.textDim} strokeWidth={1.75} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
+        {cont ? (
+          <>
+            <SectionHeader title="Continue" />
+            <ResumeCard talk={cont} />
+          </>
+        ) : null}
+
+        {next.length ? (
+          <>
+            <SectionHeader title="Up next" action="See all →" onAction={() => router.push('/queue')} />
+            <HorizontalRail talks={next} />
+          </>
+        ) : null}
+
+        {started.length ? (
+          <>
+            <SectionHeader title="Pick up where you left off" />
+            {started.map((talk, i) => (
+              <TalkRow key={talk.id} talk={talk} queue={started} index={i} showProgress />
+            ))}
+          </>
+        ) : null}
+
+        {recent.length ? (
+          <>
+            <SectionHeader title="Recently added" action="See all →" onAction={() => router.push('/library')} />
+            <HorizontalRail talks={recent} />
+          </>
+        ) : null}
+
+        {fiveStar.length ? (
+          <>
+            <SectionHeader title="From your Greatest of All" />
+            <HorizontalRail talks={fiveStar} />
+          </>
+        ) : null}
+
+        {attention > 0 ? (
+          <Pressable
+            onPress={() => router.push('/attention')}
+            accessibilityRole="button"
+            style={{
+              marginTop: space.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#241C0F',
+              borderColor: '#4A3A1C',
+              borderWidth: 1,
+              borderRadius: radius.md,
+              padding: space.sm,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+              <AlertTriangle size={16} color={colors.warning} strokeWidth={1.75} />
+              <Text variant="label" color="warning">
+                {attention} {attention === 1 ? 'talk needs' : 'talks need'} attention
+              </Text>
+            </View>
+            <ChevronRight size={16} color={colors.warning} strokeWidth={1.75} />
+          </Pressable>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+/** The large resume card at the top of §15.2's wireframe. */
+function ResumeCard({ talk }: { talk: TalkListItem }) {
+  const router = useRouter();
+  const playTalk = usePlayer((s) => s.playTalk);
+  const progress = talk.durationSec ? talk.positionSec / talk.durationSec : 0;
+
+  return (
+    <Card>
+      <Pressable
+        onPress={() => void playTalk(toNowPlaying(talk))}
+        accessibilityRole="button"
+        accessibilityLabel={`Resume ${talk.title}, ${formatDuration(
+          talk.positionSec,
+        )} of ${formatDuration(talk.durationSec)}`}
+        style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}
+      >
+        <Artwork uri={talk.artworkPath} seed={talk.speakerId ?? talk.id} color={talk.artworkColor} size={64} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text variant="title2" numberOfLines={2}>
+            {talk.title}
+          </Text>
+          <Text variant="label" color="dim" numberOfLines={1} style={{ marginTop: 2 }}>
+            {talk.speakerName}
+          </Text>
+          <View style={{ marginTop: space.xs }}>
+            <ProgressBar progress={progress} />
+          </View>
+          <Text variant="mono" color="faint" style={{ marginTop: 5 }}>
+            {formatDuration(talk.positionSec)} / {formatDuration(talk.durationSec)}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => router.push(`/talk/${talk.id}`)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Open talk details"
+        >
+          <ResidencyBadge state={talk.residency} />
+        </Pressable>
+      </Pressable>
+    </Card>
+  );
+}
+
+function HorizontalRail({ talks }: { talks: TalkListItem[] }) {
+  const router = useRouter();
+  const playTalk = usePlayer((s) => s.playTalk);
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+      {talks.map((talk, i) => (
+        <Pressable
+          key={talk.id}
+          onPress={() => router.push(`/talk/${talk.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`${talk.title}, ${talk.speakerName}`}
+          style={{ width: 104 }}
+        >
+          <Pressable
+            onPress={() => void playTalk(toNowPlaying(talk), { queue: talks.map(toNowPlaying), index: i })}
+            accessibilityLabel={`Play ${talk.title}`}
+          >
+            <Artwork
+              uri={talk.artworkPath}
+              seed={talk.speakerId ?? talk.id}
+              color={talk.artworkColor}
+              size={104}
+            />
+          </Pressable>
+          <Text variant="title3" numberOfLines={2} style={{ marginTop: 6 }}>
+            {talk.title}
+          </Text>
+          <Text variant="caption" color="dim" numberOfLines={1}>
+            {talk.speakerName}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+/**
+ * §15.1: when there is no `catalog.json`, show setup instructions with a copyable
+ * command — and deliberately DO NOT offer an in-app first scan. Doing that on-device
+ * would mean shipping delta enumeration, filename parsing and the §9.4 mapping table
+ * on the phone, triggering exactly the throttling §4.4 warns about, to duplicate a
+ * tool that already exists.
+ */
+function EmptyLibrary() {
+  const colors = useColors();
+  const router = useRouter();
+  const totals = useDbQuery(() => libraryTotals(), []);
+
+  return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={{ padding: space.gutter, gap: space.sm }}>
+        <Text variant="title1" style={{ marginTop: space.lg }}>
+          Your library is waiting on your PC
+        </Text>
+        <Text variant="body" color="dim">
+          Feast reads a catalog that the desktop tool builds from your OneDrive archive. Run these on
+          the computer where your Talks folder lives, then pull to refresh here.
+        </Text>
+
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderWidth: 1,
+            borderRadius: radius.md,
+            padding: space.sm,
+            gap: 6,
+            marginTop: space.xs,
+          }}
+        >
+          <Text variant="mono" color="accent">
+            npm i -g feast
+          </Text>
+          <Text variant="mono" color="accent">
+            feast login
+          </Text>
+          <Text variant="mono" color="accent">
+            feast init
+          </Text>
+          <Text variant="mono" color="accent">
+            feast import
+          </Text>
+        </View>
+
+        {totals && totals.bytes > 0 ? (
+          <Text variant="caption" color="faint">
+            Last known: {totals.talks} talks · {formatBytes(totals.bytes)}
+          </Text>
+        ) : null}
+
+        <Pressable
+          onPress={() => router.push('/dev-browse')}
+          accessibilityRole="button"
+          style={{ marginTop: space.lg }}
+        >
+          <Text variant="label" color="accent">
+            Browse OneDrive directly →
+          </Text>
+          <Text variant="caption" color="faint" style={{ marginTop: 2 }}>
+            Phase 1 harness: lists one folder and streams from it, without a catalog.
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}

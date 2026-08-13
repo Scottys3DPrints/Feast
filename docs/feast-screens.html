@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feast — Screen Concepts</title>
+<style>
+  :root{
+    --bg:#0D0F14; --surface:#151922; --surface2:#1E2430; --border:#2A3140;
+    --text:#F2F4F8; --dim:#98A2B3; --faint:#5A6478;
+    --accent:#C9A227; --accent-soft:#2A2413;
+    --pos:#4A9B7F; --warn:#D89B4A; --danger:#C4574B;
+    --serif: "Source Serif 4","Newsreader",Georgia,serif;
+    --sans: Inter,-apple-system,"Segoe UI",system-ui,sans-serif;
+    --mono: "JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#07080B;color:var(--text);font-family:var(--sans);
+       padding:48px 24px 80px;-webkit-font-smoothing:antialiased}
+  .page-head{max-width:1400px;margin:0 auto 44px}
+  .page-head h1{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:-.02em}
+  .page-head p{color:var(--dim);font-size:15px;margin-top:10px;max-width:70ch;line-height:1.6}
+  .page-head .k{color:var(--accent)}
+  .grid{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:36px;justify-content:center}
+  .frame{width:310px}
+  .frame > .cap{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+       color:var(--faint);margin-bottom:9px;font-weight:600}
+  .phone{width:310px;height:640px;background:var(--bg);border:1px solid var(--border);
+       border-radius:30px;overflow:hidden;position:relative;
+       box-shadow:0 22px 60px rgba(0,0,0,.6);display:flex;flex-direction:column}
+  .status{height:26px;display:flex;align-items:center;justify-content:space-between;
+       padding:0 20px;font-size:10px;color:var(--faint);font-family:var(--mono);flex:none}
+  .body{flex:1;overflow:hidden;padding:0 16px;position:relative}
+  .navbar{height:46px;display:flex;align-items:center;justify-content:space-between;flex:none;padding:0 16px}
+  .navbar h2{font-family:var(--serif);font-size:20px;font-weight:600}
+  .sec{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+       font-weight:700;margin:16px 0 8px;display:flex;justify-content:space-between;align-items:center}
+  .sec a{color:var(--accent);text-transform:none;letter-spacing:0;font-size:10px;font-weight:600;text-decoration:none}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px}
+  .row{display:flex;gap:10px;align-items:center;padding:8px 0}
+  .art{width:44px;height:44px;border-radius:8px;flex:none;position:relative;overflow:hidden}
+  .art.lg{width:64px;height:64px;border-radius:10px}
+  .g1{background:linear-gradient(135deg,#3A4A6B,#1D2740)}
+  .g2{background:linear-gradient(135deg,#5B4A6B,#2A1D40)}
+  .g3{background:linear-gradient(135deg,#6B5230,#3A2A15)}
+  .g4{background:linear-gradient(135deg,#2F5B52,#16302B)}
+  .g5{background:linear-gradient(135deg,#6B3A3A,#3A1D1D)}
+  .g6{background:linear-gradient(135deg,#3E4C5B,#20272F)}
+  .meta{min-width:0;flex:1}
+  .t{font-family:var(--serif);font-size:14px;font-weight:600;line-height:1.3;
+     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .s{font-size:11px;color:var(--dim);margin-top:2px;
+     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .s .dot{color:var(--faint);margin:0 4px}
+  .badge{flex:none;font-size:13px;width:18px;text-align:center}
+  .b-cloud{color:var(--faint)} .b-cache{color:var(--pos)} .b-pin{color:var(--accent)}
+  .b-warn{color:var(--warn)}
+  .bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:7px}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+  .mono{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .hscroll{display:flex;gap:10px;overflow:hidden}
+  .mini{width:96px;flex:none}
+  .mini .art{width:96px;height:96px;border-radius:10px}
+  .mini .t{font-size:12px;white-space:normal;line-height:1.25;margin-top:6px;
+     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mini .s{font-size:10px}
+  .tabs{height:52px;border-top:1px solid var(--border);display:flex;flex:none;
+     background:var(--surface);align-items:center}
+  .tab{flex:1;text-align:center;font-size:9px;color:var(--faint);font-weight:600}
+  .tab.on{color:var(--accent)}
+  .tab i{display:block;font-size:15px;margin-bottom:3px;font-style:normal}
+  .miniplayer{height:52px;background:var(--surface2);border-top:1px solid var(--border);
+     display:flex;align-items:center;gap:9px;padding:0 12px;flex:none;position:relative}
+  .miniplayer:before{content:"";position:absolute;top:0;left:0;width:62%;height:2px;background:var(--accent)}
+  .miniplayer .art{width:34px;height:34px;border-radius:6px}
+  .seg{display:flex;background:var(--surface2);border-radius:9px;padding:2px;margin:2px 0 4px}
+  .seg span{flex:1;text-align:center;font-size:10px;padding:6px 0;border-radius:7px;
+     color:var(--dim);font-weight:600}
+  .seg span.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  .chip{font-size:10px;padding:4px 9px;border-radius:999px;background:var(--surface2);
+     color:var(--dim);border:1px solid var(--border);font-weight:500}
+  .chip.on{background:var(--accent-soft);color:var(--accent);border-color:#4A3F1C}
+  .btn{background:var(--accent);color:#171200;font-weight:700;font-size:12px;
+     padding:10px;border-radius:10px;text-align:center;margin-top:10px}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border);font-weight:600}
+  .stack{display:flex;height:11px;border-radius:6px;overflow:hidden;background:var(--surface2);margin:9px 0 7px}
+  .stack i{display:block;height:100%}
+  .legend{display:flex;gap:12px;font-size:10px;color:var(--dim);margin-bottom:3px;flex-wrap:wrap}
+  .legend b{font-weight:600;color:var(--text)}
+  .sw{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+  .note{font-size:10px;color:var(--faint);line-height:1.5;margin-top:8px}
+  .warnrow{background:#241C0F;border:1px solid #4A3A1C;border-radius:10px;padding:9px 11px;
+     font-size:11px;color:var(--warn);display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+  /* player */
+  .pl{display:flex;flex-direction:column;align-items:center;padding-top:6px;height:100%}
+  .pl .bigart{width:186px;height:186px;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.55)}
+  .pl h3{font-family:var(--serif);font-size:21px;font-weight:600;margin-top:22px;text-align:center;line-height:1.25}
+  .pl .sp{color:var(--accent);font-size:12px;margin-top:7px;font-weight:600}
+  .pl .ev{color:var(--faint);font-size:10px;margin-top:4px}
+  .scrub{width:100%;margin-top:22px}
+  .scrub .track{height:3px;background:var(--surface2);border-radius:2px;position:relative}
+  .scrub .track i{position:absolute;left:0;top:0;height:100%;width:67%;background:var(--accent);border-radius:2px}
+  .scrub .track b{position:absolute;left:67%;top:-3.5px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .scrub .times{display:flex;justify-content:space-between;margin-top:7px}
+  .transport{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:24px;width:100%}
+  .transport .ic{font-size:19px;color:var(--dim)}
+  .transport .play{width:56px;height:56px;border-radius:50%;background:var(--accent);
+     color:#171200;display:flex;align-items:center;justify-content:center;font-size:21px}
+  .plfoot{display:flex;justify-content:space-between;width:100%;margin-top:26px;
+     font-size:11px;color:var(--dim);font-weight:600}
+  .tree{font-size:12px}
+  .tree .n{display:flex;align-items:center;gap:8px;padding:8px 0}
+  .tree .n .cb{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--faint);flex:none}
+  .tree .n .cb.on{background:var(--accent);border-color:var(--accent)}
+  .tree .ind{padding-left:20px}
+  .snip{font-size:11px;color:var(--dim);line-height:1.5;margin-top:3px}
+  .snip b{color:var(--accent);font-weight:600}
+  .legendbar{max-width:1400px;margin:40px auto 0;padding:18px 22px;background:var(--surface);
+     border:1px solid var(--border);border-radius:14px;display:flex;gap:26px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+  .legendbar b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Feast — screen concepts</h1>
+  <p>Dark-first, serif for content and sans for chrome, brass gold reserved for <span class="k">the thing playing</span> and <span class="k">the primary action</span>. Every row carries one residency badge, which is how the whole cloud-library idea becomes legible in a glance. Static mockups — layout and hierarchy, not pixel-final.</p>
+</div>
+
+<div class="grid">
+
+  <!-- HOME -->
+  <div class="frame"><div class="cap">Home</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><h2>Good evening</h2><span style="color:var(--dim)">⚙</span></div>
+    <div class="body">
+      <div class="sec">Continue</div>
+      <div class="card"><div class="row" style="padding:0">
+        <div class="art lg g1"></div>
+        <div class="meta">
+          <div class="t">Think Celestial!</div>
+          <div class="s">Russell M. Nelson</div>
+          <div class="bar"><i style="width:67%"></i></div>
+          <div class="mono" style="margin-top:5px">14:32 / 21:40</div>
+        </div>
+        <div class="badge b-pin">📌</div>
+      </div></div>
+
+      <div class="sec">Up next <a>See all →</a></div>
+      <div class="hscroll">
+        <div class="mini"><div class="art g2"></div><div class="t">The Greatest Possession</div><div class="s">Gordon B. Hinckley</div></div>
+        <div class="mini"><div class="art g3"></div><div class="t">Righteous Warriors</div><div class="s">John Bytheway</div></div>
+        <div class="mini"><div class="art g4"></div><div class="t">The Meaning of the Temple</div><div class="s">Hugh Nibley</div></div>
+      </div>
+
+      <div class="sec">Pick up where you left off</div>
+      <div class="row" style="padding:5px 0">
+        <div class="art g5"></div>
+        <div class="meta"><div class="t">Broken Things to Mend</div>
+          <div class="s">Jeffrey R. Holland<span class="dot">·</span>8:04 left</div></div>
+        <div class="badge b-cache">⬤</div>
+      </div>
+      <div class="row" style="padding:5px 0">
+        <div class="art g6"></div>
+        <div class="meta"><div class="t">17 Points of the True Church</div>
+          <div class="s">Floyd Weston<span class="dot">·</span>Part 3 of 9</div></div>
+        <div class="badge b-cloud">☁</div>
+      </div>
+
+      <div class="warnrow"><span>⚠ 10 talks need re-downloading</span><span>→</span></div>
+    </div>
+    <div class="miniplayer">
+      <div class="art g1"></div>
+      <div class="meta"><div class="t" style="font-size:12px">Think Celestial!</div>
+        <div class="s" style="font-size:10px">Russell M. Nelson</div></div>
+      <div style="color:var(--accent);font-size:17px">⏸</div>
+    </div>
+    <div class="tabs">
+      <div class="tab on"><i>⌂</i>Home</div><div class="tab"><i>≣</i>Library</div>
+      <div class="tab"><i>⌕</i>Search</div><div class="tab"><i>⭳</i>Storage</div>
+    </div>
+  </div></div>
+
+  <!-- LIBRARY -->
+  <div class="frame"><div class="cap">Library — speakers</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><h2>Library</h2><span style="color:var(--dim)">⇅</span></div>
+    <div class="body">
+      <div class="seg"><span class="on">Speakers</span><span>Collections</span><span>Series</span><span>All</span></div>
+      <div class="sec">Prophets</div>
+      <div class="row"><div class="art g1" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Russell M. Nelson</div>
+          <div class="s">17th President<span class="dot">·</span>117 talks</div></div>
+        <div class="chip on" style="font-size:9px">31 new</div></div>
+      <div class="row"><div class="art g6" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Thomas S. Monson</div>
+          <div class="s">16th President<span class="dot">·</span>222 talks</div></div></div>
+      <div class="row"><div class="art g3" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Gordon B. Hinckley</div>
+          <div class="s">15th President<span class="dot">·</span>249 talks</div></div></div>
+      <div class="sec">Apostles</div>
+      <div class="row"><div class="art g5" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Jeffrey R. Holland</div>
+          <div class="s">Quorum of the Twelve<span class="dot">·</span>105 talks</div></div></div>
+      <div class="row"><div class="art g2" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Neal A. Maxwell</div>
+          <div class="s">Quorum of the Twelve<span class="dot">·</span>81 talks</div></div></div>
+      <div class="sec">Others</div>
+      <div class="row"><div class="art g4" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Hugh Nibley</div>
+          <div class="s">Scholar<span class="dot">·</span>20 talks</div></div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><i>⌂</i>Home</div><div class="tab on"><i>≣</i>Library</div>
+      <div class="tab"><i>⌕</i>Search</div><div class="tab"><i>⭳</i>Storage</div>
+    </div>
+  </div></div>
+
+  <!-- PLAYER -->
+  <div class="frame"><div class="cap">Player</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><span style="color:var(--dim);font-size:17px">⌄</span>
+      <span style="color:var(--dim)">⋯</span></div>
+    <div class="body"><div class="pl">
+      <div class="bigart g1"></div>
+      <h3>Think Celestial!</h3>
+      <div class="sp">Russell M. Nelson</div>
+      <div class="ev">October 2023 General Conference · Sunday Morning</div>
+      <div class="scrub">
+        <div class="track"><i></i><b></b></div>
+        <div class="times"><span class="mono">14:32</span><span class="mono">−07:08</span></div>
+      </div>
+      <div class="transport">
+        <span class="ic">⏮</span><span class="ic">⏪</span>
+        <span class="play">⏸</span>
+        <span class="ic">⏩</span><span class="ic">⏭</span>
+      </div>
+      <div class="plfoot"><span>1.5×</span><span>⏰ 30m</span><span>🔖</span><span>☰ Queue</span></div>
+    </div></div>
+  </div></div>
+
+  <!-- STORAGE -->
+  <div class="frame"><div class="cap">Storage — the concept, made visible</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><h2>Storage</h2></div>
+    <div class="body">
+      <div class="card">
+        <div class="stack">
+          <i style="width:33%;background:var(--accent)"></i>
+          <i style="width:16%;background:var(--pos)"></i>
+        </div>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--accent)"></span>Pinned <b>1.2 GB</b></span>
+          <span><span class="sw" style="background:var(--pos)"></span>Cached <b>0.6 / 2.0 GB</b></span>
+        </div>
+        <div class="note">41 GB free on device. Pinned talks aren't counted against the cache budget.</div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--dim)">Library in the cloud</span><b>24.5 GB · 1,875</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:7px">
+          <span style="color:var(--dim)">On this device</span><b>38 talks</b></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="btn ghost" style="flex:1">Free up space</div>
+        <div class="btn ghost" style="flex:1">Change budget</div>
+      </div>
+
+      <div class="sec">Pinned</div>
+      <div class="row" style="padding:6px 0"><div class="badge b-pin">📌</div>
+        <div class="meta"><div class="t">Greatest of All</div>
+          <div class="s">Collection<span class="dot">·</span>130 talks</div></div>
+        <span class="mono">1.1 GB</span></div>
+      <div class="row" style="padding:6px 0"><div class="badge b-pin">📌</div>
+        <div class="meta"><div class="t">Think Celestial!</div>
+          <div class="s">Russell M. Nelson<span class="dot">·</span>21m</div></div>
+        <span class="mono">18 MB</span></div>
+
+      <div class="sec">Auto-cached <a>by size ▾</a></div>
+      <div class="row" style="padding:6px 0"><div class="badge b-cache">⬤</div>
+        <div class="meta"><div class="t">Righteous Warriors</div>
+          <div class="s">John Bytheway</div></div>
+        <span class="mono">138 MB</span></div>
+      <div class="row" style="padding:6px 0"><div class="badge b-cache">⬤</div>
+        <div class="meta"><div class="t">Break Up With The World</div>
+          <div class="s">Hank Smith</div></div>
+        <span class="mono">149 MB</span></div>
+      <div class="note">Cached talks can be removed any time — they're always still in your library, one tap from playing again.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><i>⌂</i>Home</div><div class="tab"><i>≣</i>Library</div>
+      <div class="tab"><i>⌕</i>Search</div><div class="tab on"><i>⭳</i>Storage</div>
+    </div>
+  </div></div>
+
+  <!-- SEARCH -->
+  <div class="frame"><div class="cap">Search — offline, incl. transcripts</div><div class="phone">
+    <div class="status"><span>9:41</span><span>✈ ▮▮▮</span></div>
+    <div class="navbar"><h2>Search</h2></div>
+    <div class="body">
+      <div class="card" style="padding:9px 11px;font-size:13px;color:var(--text)">
+        ⌕&nbsp; charity never faileth</div>
+      <div class="chips">
+        <div class="chip on">All</div><div class="chip">Unplayed</div>
+        <div class="chip">Downloaded</div><div class="chip">5★</div><div class="chip">Prophets</div>
+      </div>
+
+      <div class="sec">Talks</div>
+      <div class="row" style="padding:6px 0"><div class="art g5"></div>
+        <div class="meta"><div class="t">The Pure Love of Christ</div>
+          <div class="s">Marvin J. Ashton<span class="dot">·</span>13:20</div></div>
+        <div class="badge b-cloud">☁</div></div>
+
+      <div class="sec">Speakers</div>
+      <div class="row" style="padding:6px 0"><div class="art g4" style="border-radius:50%"></div>
+        <div class="meta"><div class="t">Bonnie L. Oscarson</div>
+          <div class="s">9 talks</div></div></div>
+
+      <div class="sec">In transcripts</div>
+      <div class="row" style="padding:6px 0;align-items:flex-start">
+        <div class="art g1"></div>
+        <div class="meta"><div class="t">Broken Things to Mend</div>
+          <div class="snip">…and <b>charity never faileth</b>. That is the covenant we…</div>
+          <div class="mono" style="margin-top:4px">≈ 11:04 · tap to jump</div></div></div>
+      <div class="row" style="padding:6px 0;align-items:flex-start">
+        <div class="art g3"></div>
+        <div class="meta"><div class="t">Gospel Values for Youth</div>
+          <div class="snip">…Paul wrote that <b>charity never faileth</b>, and I want…</div>
+          <div class="mono" style="margin-top:4px">≈ 47:22 · tap to jump</div></div></div>
+
+      <div class="note">Searching 1,875 titles and speakers, and inside 412 transcripts.</div>
+    </div>
+    <div class="tabs">
+      <div class="tab"><i>⌂</i>Home</div><div class="tab"><i>≣</i>Library</div>
+      <div class="tab on"><i>⌕</i>Search</div><div class="tab"><i>⭳</i>Storage</div>
+    </div>
+  </div></div>
+
+  <!-- DISCOVER -->
+  <div class="frame"><div class="cap">Discover — mass download by speaker</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><h2>Jeffrey R. Holland</h2><span style="color:var(--dim)">⋯</span></div>
+    <div class="body">
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:12px;font-weight:600">General Conference</div>
+          <div class="s">87 talks · 62 not in your library</div></div>
+        <div class="chip on">Select all</div>
+      </div>
+
+      <div class="sec">2024</div>
+      <div class="tree">
+        <div class="n"><span class="cb on"></span>
+          <div class="meta"><div class="t">Motions of a Hidden Fire</div>
+            <div class="s">April · Sunday Morning · 14:02</div></div><span class="mono">13 MB</span></div>
+        <div class="n"><span class="cb on"></span>
+          <div class="meta"><div class="t">Bearing Testimony</div>
+            <div class="s">October · Saturday Afternoon · 11:38</div></div><span class="mono">11 MB</span></div>
+      </div>
+      <div class="sec">2023</div>
+      <div class="tree">
+        <div class="n"><span class="cb on"></span>
+          <div class="meta"><div class="t">Lifted Up upon the Cross</div>
+            <div class="s">October · Sunday Morning · 15:10</div></div><span class="mono">14 MB</span></div>
+        <div class="n"><span class="cb"></span>
+          <div class="meta" style="opacity:.5"><div class="t">Tomorrow the Lord Will Do Wonders</div>
+            <div class="s">April · already in your library</div></div>
+          <div class="badge b-cache">⬤</div></div>
+      </div>
+      <div class="sec">2022</div>
+      <div class="tree">
+        <div class="n"><span class="cb on"></span>
+          <div class="meta"><div class="t">Encircled About with Fire</div>
+            <div class="s">April · Priesthood · 12:44</div></div><span class="mono">12 MB</span></div>
+      </div>
+
+      <div class="btn">Queue 62 talks · ~740 MB</div>
+      <div class="note">Feast on your PC will fetch these next time it runs. Files land in your OneDrive, filed under By&nbsp;Speaker › Apostles › Jeffrey R. Holland.</div>
+    </div>
+  </div></div>
+
+  <!-- COLLECTION / ORGANIZE -->
+  <div class="frame"><div class="cap">Collections — nested, multi-select</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><span style="color:var(--dim)">‹ My List</span><span style="color:var(--accent);font-size:11px;font-weight:600">3 selected</span></div>
+    <div class="body">
+      <div style="font-family:var(--serif);font-size:22px;font-weight:600;margin-top:2px">Greatest of All</div>
+      <div class="s" style="margin-top:5px">130 talks · 12h 40m · 1.1 GB · ★★★★★</div>
+      <div style="display:flex;gap:8px">
+        <div class="btn" style="flex:1">▶ Play all</div>
+        <div class="btn ghost" style="flex:1">📌 Pinned</div>
+      </div>
+
+      <div class="sec">Folders</div>
+      <div class="chips">
+        <div class="chip">🗀 Conference favourites · 41</div>
+        <div class="chip">🗀 Ed Week · 22</div>
+      </div>
+
+      <div class="sec">Talks</div>
+      <div class="row" style="padding:6px 0"><span class="cb" style="width:15px;height:15px;border-radius:4px;background:var(--accent);flex:none"></span>
+        <div class="art g3"></div>
+        <div class="meta"><div class="t">Gospel Values for Youth</div>
+          <div class="s">John Bytheway<span class="dot">·</span>1998 Ed Week</div></div>
+        <div class="badge b-pin">📌</div></div>
+      <div class="row" style="padding:6px 0"><span class="cb" style="width:15px;height:15px;border-radius:4px;background:var(--accent);flex:none"></span>
+        <div class="art g5"></div>
+        <div class="meta"><div class="t">Righteous Warriors</div>
+          <div class="s">John Bytheway<span class="dot">·</span>2006 Ed Week</div></div>
+        <div class="badge b-pin">📌</div></div>
+      <div class="row" style="padding:6px 0"><span class="cb" style="width:15px;height:15px;border-radius:4px;background:var(--accent);flex:none"></span>
+        <div class="art g4"></div>
+        <div class="meta"><div class="t">The Meaning of the Temple</div>
+          <div class="s">Hugh Nibley<span class="dot">·</span>Lectures</div></div>
+        <div class="badge b-cloud">☁</div></div>
+      <div class="row" style="padding:6px 0"><span class="cb" style="width:15px;height:15px;border-radius:4px;border:1.5px solid var(--faint);flex:none"></span>
+        <div class="art g2"></div>
+        <div class="meta"><div class="t">Break Up With The World</div>
+          <div class="s">Hank Smith</div></div>
+        <div class="badge b-cache">⬤</div></div>
+
+      <div class="card" style="margin-top:12px;display:flex;gap:8px;justify-content:space-around;font-size:11px;color:var(--accent);font-weight:600">
+        <span>+ Collection</span><span>🏷 Tag</span><span>📌 Pin</span><span>☰ Queue</span>
+      </div>
+      <div class="note">The same talk can sit in as many collections as it deserves — no more copying files between folders.</div>
+    </div>
+  </div></div>
+
+  <!-- TALK DETAIL / TRANSCRIPT -->
+  <div class="frame"><div class="cap">Talk detail — with transcript</div><div class="phone">
+    <div class="status"><span>9:41</span><span>▮▮▮ ⌁</span></div>
+    <div class="navbar"><span style="color:var(--dim)">‹</span><span style="color:var(--dim)">⋯</span></div>
+    <div class="body">
+      <div style="display:flex;gap:12px">
+        <div class="art lg g5" style="width:84px;height:84px"></div>
+        <div class="meta" style="padding-top:2px">
+          <div style="font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.25">Broken Things to Mend</div>
+          <div class="sp" style="color:var(--accent);font-size:12px;font-weight:600;margin-top:6px">Jeffrey R. Holland</div>
+          <div class="mono" style="margin-top:5px">April 2006 GC · 13:20 · 12 MB</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="btn" style="flex:2">▶ Play</div>
+        <div class="btn ghost" style="flex:1">☁ Pin</div>
+      </div>
+      <div class="chips" style="margin-top:10px">
+        <div class="chip">★★★★☆</div><div class="chip">🔖 2</div>
+        <div class="chip on">Greatest of All</div><div class="chip">Atonement</div>
+      </div>
+
+      <div class="sec">Transcript <a>Follow along ▾</a></div>
+      <div style="font-family:var(--serif);font-size:14px;line-height:1.75;color:var(--dim)">
+        <p style="color:var(--text)">To all such I say, come back. Rise up and be the man you were meant to be…</p>
+        <p style="margin-top:12px">Wherever you are and whatever your circumstance, the healing power of the Atonement reaches you.</p>
+        <p style="margin-top:12px">…and <b style="color:var(--accent)">charity never faileth</b>. That is the covenant we make…</p>
+      </div>
+      <div class="note">Tap any paragraph to jump there in the audio.</div>
+    </div>
+  </div></div>
+
+</div>
+
+<div class="legendbar">
+  <span><b>☁</b> in the library, not on this device — tap to stream</span>
+  <span><b style="color:var(--pos)">⬤</b> auto-cached, plays offline, may be evicted</span>
+  <span><b style="color:var(--accent)">📌</b> pinned, guaranteed offline</span>
+  <span><b style="color:var(--warn)">⚠</b> needs attention</span>
+</div>
+
+</body>
+</html>
