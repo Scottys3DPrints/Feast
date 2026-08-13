@@ -114,6 +114,7 @@ const config: ExpoConfig = {
       },
     ],
     './plugins/withReleaseSigning',
+    './plugins/withNdkVersion',
   ],
 
   experiments: {

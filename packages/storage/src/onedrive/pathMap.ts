@@ -9,7 +9,7 @@
  * ⚠️ Entries go stale whenever a file moves. `feast dedupe --apply` moves files, so it
  * must invalidate here *and* rewrite `archivePath` in the same run (§7.1, §9.3).
  */
-import type { PathMapStore } from '../types.js';
+import type { PathMapStore } from '../types';
 
 export class MemoryPathMap implements PathMapStore {
   #map = new Map<string, string>();

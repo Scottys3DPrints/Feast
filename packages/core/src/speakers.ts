@@ -7,7 +7,7 @@
  * ⚠️ Fuzzy matching NEVER silently merges. `resolveSpeaker` returns a confidence and
  * the caller decides; §9.4 requires a confirmation prompt for anything below `exact`.
  */
-import type { Speaker, SpeakerRole } from './types.js';
+import type { Speaker, SpeakerRole } from './types';
 
 /** Diacritic-stripped, punctuation-free, lowercase, single-spaced. */
 export function normalizeName(raw: string): string {

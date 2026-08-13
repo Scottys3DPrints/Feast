@@ -28,6 +28,12 @@ REM  Only the app's source code lives there - no audio, nothing from the library
 set "GH_OWNER=Scottys3DPrints"
 set "GH_REPO=Feast"
 
+REM  Gradle finds the SDK through ANDROID_HOME or android\local.properties. The latter
+REM  is regenerated (and wiped) by `expo prebuild`, so setting the variable here is the
+REM  part that actually survives. Without it the build runs for ten minutes and then
+REM  fails at "SDK location not found".
+set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+
 echo.
 echo  == Feast - publish ==
 echo.

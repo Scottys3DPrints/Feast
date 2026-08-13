@@ -6,9 +6,9 @@
  * belongs in `packages/storage`, `apps/ingest`, or `apps/mobile` instead.
  */
 
-export * from './types.js';
-export * from './codec.js';
-export * from './schema.js';
-export * from './speakers.js';
-export * from './paths.js';
-export * from './ids.js';
+export * from './types';
+export * from './codec';
+export * from './schema';
+export * from './speakers';
+export * from './paths';
+export * from './ids';

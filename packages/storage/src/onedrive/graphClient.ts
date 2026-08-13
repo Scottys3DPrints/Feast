@@ -13,8 +13,8 @@
  * This file, and this file only, knows what a Graph URL looks like (§7.2 rule 1 /
  * acceptance criterion 18).
  */
-import { StorageError, classifyHttp } from '../errors.js';
-import type { TokenProvider } from '../types.js';
+import { StorageError, classifyHttp } from '../errors';
+import type { TokenProvider } from '../types';
 
 export const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
 

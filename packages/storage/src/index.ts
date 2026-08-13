@@ -10,13 +10,13 @@
  * re-index. Every collection, rating, and bookmark survives untouched.
  */
 
-export * from './types.js';
-export * from './errors.js';
-export { OneDriveProvider, APP_FOLDER_PREFIX } from './onedrive/OneDriveProvider.js';
-export type { OneDriveProviderOptions } from './onedrive/OneDriveProvider.js';
-export { MemoryPathMap, FolderTree } from './onedrive/pathMap.js';
-export type { FolderNode } from './onedrive/pathMap.js';
-export type { ThrottleListener } from './onedrive/graphClient.js';
+export * from './types';
+export * from './errors';
+export { OneDriveProvider, APP_FOLDER_PREFIX } from './onedrive/OneDriveProvider';
+export type { OneDriveProviderOptions } from './onedrive/OneDriveProvider';
+export { MemoryPathMap, FolderTree } from './onedrive/pathMap';
+export type { FolderNode } from './onedrive/pathMap';
+export type { ThrottleListener } from './onedrive/graphClient';
 
 /** Canonical app-document names (§6.3). One writer per file, always. */
 export const APP_FILES = {

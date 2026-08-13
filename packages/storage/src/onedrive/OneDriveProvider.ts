@@ -17,7 +17,7 @@
  *     URL; re-resolve immediately before playback; treat 403 as normal (§11.4).
  */
 import { encodePathForUrl, normalizePath } from '@feast/core';
-import { StorageError, classifyHttp } from '../errors.js';
+import { StorageError, classifyHttp } from '../errors';
 import type {
   AppFileRead,
   ChangeSet,
@@ -28,16 +28,16 @@ import type {
   StorageProvider,
   StorageRef,
   TokenProvider,
-} from '../types.js';
-import { isPathRef } from '../types.js';
-import { GraphClient, type ThrottleListener, parseRetryAfter } from './graphClient.js';
-import { FolderTree, MemoryPathMap } from './pathMap.js';
+} from '../types';
+import { isPathRef } from '../types';
+import { GraphClient, type ThrottleListener, parseRetryAfter } from './graphClient';
+import { FolderTree, MemoryPathMap } from './pathMap';
 import {
   ITEM_SELECT,
   STREAM_SELECT,
   type GraphCollection,
   type GraphDriveItem,
-} from './graphTypes.js';
+} from './graphTypes';
 
 /**
  * ⚠️ SPEC INCONSISTENCY, resolved here and surfaced as one constant.

@@ -16,8 +16,20 @@ REM ---------------------------------------------------------------------------
 
 cd /d "%~dp0"
 
-set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+REM  Gradle finds the SDK through ANDROID_HOME or android\local.properties. The latter
+REM  is regenerated (and wiped) by `expo prebuild`, so setting the variable here is the
+REM  part that actually survives. Without it the build runs for ten minutes and then
+REM  fails at "SDK location not found".
+set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+set "ADB=%ANDROID_HOME%\platform-tools\adb.exe"
 set "APK=apps\mobile\android\app\build\outputs\apk\release\app-release.apk"
+
+if not exist "%ANDROID_HOME%\platform-tools\adb.exe" (
+    echo  [X] Android SDK not found at %ANDROID_HOME%
+    echo      Install it via Android Studio, or edit ANDROID_HOME at the top of this file.
+    pause
+    exit /b 1
+)
 
 echo.
 echo  == Feast ==
