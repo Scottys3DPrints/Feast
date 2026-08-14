@@ -5,7 +5,21 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useFonts } from 'expo-font';
+import {
+  SourceSerif4_400Regular,
+  SourceSerif4_600SemiBold,
+  SourceSerif4_700Bold,
+} from '@expo-google-fonts/source-serif-4';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { migrate } from '../src/db/client';
+import { seedDemoCatalogIfEmpty } from '../src/db/demoSeed';
 import { reconcilePositions } from '../src/player/positionStore';
 import { flushOnBackground } from '../src/player/store';
 import { ThemeProvider, useColors } from '../src/ui/theme';
@@ -37,9 +51,32 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const [fatal, setFatal] = useState<string | null>(null);
 
+  /**
+   * §14.2's two families, loaded before anything paints.
+   *
+   * ⚠️ The keys here must match `fontFamily` in ui/tokens.ts EXACTLY. React Native does
+   * not warn when a `fontFamily` names a font that was never registered — it silently
+   * substitutes the system face. The symptom is an app that looks plausible and is
+   * entirely missing its design: every serif renders as Roboto, and the serif/sans
+   * distinction that separates content from chrome disappears without a single error.
+   */
+  const [fontsLoaded, fontError] = useFonts({
+    SourceSerif4: SourceSerif4_400Regular,
+    'SourceSerif4-SemiBold': SourceSerif4_600SemiBold,
+    'SourceSerif4-Bold': SourceSerif4_700Bold,
+    Inter: Inter_400Regular,
+    'Inter-Medium': Inter_500Medium,
+    'Inter-SemiBold': Inter_600SemiBold,
+    'Inter-Bold': Inter_700Bold,
+    JetBrainsMono: JetBrainsMono_500Medium,
+  });
+
   useEffect(() => {
     try {
       migrate();
+      // Scaffolding until Phase 2's `feast import` exists — no-ops the moment the
+      // library has any real talk in it. See src/db/demoSeed.ts.
+      seedDemoCatalogIfEmpty();
       // §12.3 — MMKV is ahead of SQLite whenever the app was killed mid-talk.
       reconcilePositions();
       setReady(true);
@@ -62,7 +99,18 @@ export default function RootLayout() {
         <ThemeProvider>
           <QueryClientProvider client={queryClient}>
             <StatusBar style="light" />
-            {fatal ? <FatalError message={fatal} /> : ready ? <Routes /> : <Booting />}
+            {/*
+              Fonts gate the first paint alongside the migration. A font error is not
+              fatal — falling back to system faces is ugly but usable, and refusing to
+              start over a missing typeface would be worse than the typeface.
+            */}
+            {fatal ? (
+              <FatalError message={fatal} />
+            ) : ready && (fontsLoaded || fontError) ? (
+              <Routes />
+            ) : (
+              <Booting />
+            )}
           </QueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>

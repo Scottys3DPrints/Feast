@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, ChevronRight, Settings } from 'lucide-react-native';
+import { AlertTriangle, ChevronRight, Play, Settings } from 'lucide-react-native';
 import { formatBytes, formatDuration } from '@feast/core';
 import {
   continueListening,
@@ -49,18 +49,32 @@ export default function HomeScreen() {
       <View
         style={{
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'space-between',
           paddingHorizontal: space.gutter,
-          height: 48,
+          paddingTop: space.sm,
+          paddingBottom: space.xs,
         }}
       >
-        <Text variant="title1">{greeting()}</Text>
+        <View>
+          <Text variant="overline" color="faint" style={{ textTransform: 'uppercase' }}>
+            {greeting()}
+          </Text>
+          {/*
+            The library's scale, stated plainly and computed at runtime (§15.1 / §19.1 —
+            never hardcoded). It is also the product's whole promise in one line: all of
+            this, none of it on your phone.
+          */}
+          <Text variant="display" style={{ marginTop: 4 }}>
+            Feast
+          </Text>
+        </View>
         <Pressable
           onPress={() => router.push('/settings')}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Settings"
+          style={{ paddingTop: space.xs }}
         >
           <Settings size={20} color={colors.textDim} strokeWidth={1.75} />
         </Pressable>
@@ -72,7 +86,7 @@ export default function HomeScreen() {
       >
         {cont ? (
           <>
-            <SectionHeader title="Continue" />
+            <SectionHeader title="Continue listening" />
             <ResumeCard talk={cont} />
           </>
         ) : null}
@@ -137,47 +151,84 @@ export default function HomeScreen() {
   );
 }
 
-/** The large resume card at the top of §15.2's wireframe. */
+/**
+ * The resume hero — §15.2's "large resume card", taken literally.
+ *
+ * This is the one place on Home that gets to be big. It is what the user wants 90% of
+ * the times they open the app, so it is laid out as a hero rather than as the first row
+ * of a list: large artwork, the title in display serif, and the only gold play button on
+ * the screen (§14.1 — "if everything is gold, nothing is").
+ */
 function ResumeCard({ talk }: { talk: TalkListItem }) {
+  const colors = useColors();
   const router = useRouter();
   const playTalk = usePlayer((s) => s.playTalk);
   const progress = talk.durationSec ? talk.positionSec / talk.durationSec : 0;
+  const remaining = Math.max(0, (talk.durationSec ?? 0) - talk.positionSec);
 
   return (
-    <Card>
+    <Pressable
+      onPress={() => router.push(`/talk/${talk.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`${talk.title}, ${talk.speakerName}, ${formatDuration(remaining)} left`}
+      style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}
+    >
+      <Artwork
+        uri={talk.artworkPath}
+        seed={talk.speakerId ?? talk.id}
+        color={talk.artworkColor}
+        size={96}
+      />
+
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text variant="title1" numberOfLines={3}>
+          {talk.title}
+        </Text>
+        <Text variant="label" color="accent" numberOfLines={1} style={{ marginTop: 6 }}>
+          {talk.speakerName}
+        </Text>
+
+        <View style={{ marginTop: space.sm }}>
+          <ProgressBar progress={progress} />
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 6,
+          }}
+        >
+          {/*
+            "8:04 left" rather than "14:32 / 21:40". The wireframe shows elapsed/total,
+            but the question being answered here is "can I finish this before I arrive",
+            and remaining time answers it without arithmetic.
+          */}
+          <Text variant="mono" color="faint">
+            {formatDuration(remaining)} left
+          </Text>
+          <ResidencyBadge state={talk.residency} />
+        </View>
+      </View>
+
       <Pressable
         onPress={() => void playTalk(toNowPlaying(talk))}
+        hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel={`Resume ${talk.title}, ${formatDuration(
-          talk.positionSec,
-        )} of ${formatDuration(talk.durationSec)}`}
-        style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}
+        accessibilityLabel={`Resume ${talk.title}`}
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: colors.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        <Artwork uri={talk.artworkPath} seed={talk.speakerId ?? talk.id} color={talk.artworkColor} size={64} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="title2" numberOfLines={2}>
-            {talk.title}
-          </Text>
-          <Text variant="label" color="dim" numberOfLines={1} style={{ marginTop: 2 }}>
-            {talk.speakerName}
-          </Text>
-          <View style={{ marginTop: space.xs }}>
-            <ProgressBar progress={progress} />
-          </View>
-          <Text variant="mono" color="faint" style={{ marginTop: 5 }}>
-            {formatDuration(talk.positionSec)} / {formatDuration(talk.durationSec)}
-          </Text>
-        </View>
-        <Pressable
-          onPress={() => router.push(`/talk/${talk.id}`)}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Open talk details"
-        >
-          <ResidencyBadge state={talk.residency} />
-        </Pressable>
+        <Play size={22} color={colors.onAccent} fill={colors.onAccent} strokeWidth={0} />
       </Pressable>
-    </Card>
+    </Pressable>
   );
 }
 
@@ -193,7 +244,7 @@ function HorizontalRail({ talks }: { talks: TalkListItem[] }) {
           onPress={() => router.push(`/talk/${talk.id}`)}
           accessibilityRole="button"
           accessibilityLabel={`${talk.title}, ${talk.speakerName}`}
-          style={{ width: 104 }}
+          style={{ width: 128 }}
         >
           <Pressable
             onPress={() => void playTalk(toNowPlaying(talk), { queue: talks.map(toNowPlaying), index: i })}
@@ -203,13 +254,18 @@ function HorizontalRail({ talks }: { talks: TalkListItem[] }) {
               uri={talk.artworkPath}
               seed={talk.speakerId ?? talk.id}
               color={talk.artworkColor}
-              size={104}
+              size={128}
             />
           </Pressable>
-          <Text variant="title3" numberOfLines={2} style={{ marginTop: 6 }}>
+          {/*
+            Serif for the title, sans for the speaker. That pairing is the entire §14.2
+            idea in miniature — content gets the serif voice, chrome gets the sans one —
+            and at rail size it is what stops these reading as generic podcast tiles.
+          */}
+          <Text variant="title2" numberOfLines={2} style={{ marginTop: space.xs }}>
             {talk.title}
           </Text>
-          <Text variant="caption" color="dim" numberOfLines={1}>
+          <Text variant="caption" color="dim" numberOfLines={1} style={{ marginTop: 2 }}>
             {talk.speakerName}
           </Text>
         </Pressable>

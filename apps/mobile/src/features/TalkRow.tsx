@@ -45,7 +45,10 @@ export const TalkRow = memo(function TalkRow({
     });
   };
 
-  const subtitle = [talk.speakerName, formatDuration(talk.durationSec)].filter(Boolean).join(' · ');
+  // Speaker carries the meaning; duration is a number you glance at. Splitting them into
+  // two type styles rather than joining with " · " lets the eye skip the digits — at
+  // 2,000 rows (§17) that difference is the whole scannability of the list.
+  const duration = formatDuration(talk.durationSec);
 
   return (
     <Pressable
@@ -59,7 +62,7 @@ export const TalkRow = memo(function TalkRow({
         flexDirection: 'row',
         alignItems: 'center',
         gap: space.sm,
-        paddingVertical: space.xs,
+        paddingVertical: space.sm,
         opacity: pressed ? 0.7 : 1,
       })}
     >
@@ -73,25 +76,32 @@ export const TalkRow = memo(function TalkRow({
           uri={talk.artworkPath}
           seed={talk.speakerId ?? talk.id}
           color={talk.artworkColor}
-          size={44}
+          size={52}
         />
       </Pressable>
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text
           variant="title2"
-          numberOfLines={1}
+          numberOfLines={2}
           // §14.1 accent discipline: gold marks the currently playing thing, and this
           // is one of exactly two places that qualifies.
           color={isCurrent ? 'accent' : 'text'}
         >
           {talk.title}
         </Text>
-        <Text variant="label" color="dim" numberOfLines={1}>
-          {subtitle}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+          <Text variant="label" color="dim" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {talk.speakerName}
+          </Text>
+          {duration ? (
+            <Text variant="mono" color="faint">
+              {duration}
+            </Text>
+          ) : null}
+        </View>
         {showProgress && progress > 0.01 ? (
-          <View style={{ marginTop: 6 }}>
+          <View style={{ marginTop: 8 }}>
             <ProgressBar progress={progress} />
           </View>
         ) : null}

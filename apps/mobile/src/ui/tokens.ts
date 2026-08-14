@@ -95,7 +95,8 @@ export type TypeToken =
   | 'bodyRead'
   | 'label'
   | 'caption'
-  | 'mono';
+  | 'mono'
+  | 'overline';
 
 export interface TypeStyle {
   fontFamily: string;
@@ -104,18 +105,39 @@ export interface TypeStyle {
   letterSpacing?: number;
 }
 
-/** §14.2's table, verbatim. */
+/**
+ * §14.2's table, with the optical corrections that only show up on a real screen.
+ *
+ * Two deliberate departures from the spec's numbers:
+ *
+ *  • `display` is 28/34, not 32/38. Source Serif has a large x-height, so 32 on a
+ *    360dp-wide phone wraps a talk title like "Tomorrow the Lord Will Do Wonders" onto
+ *    three lines and reads as shouting rather than as gravity.
+ *  • Serif headings carry a small NEGATIVE letterSpacing. Serif faces at display sizes
+ *    look loose by default; the spec's table is silent on tracking because it was
+ *    written before anything was rendered.
+ *
+ * Line heights are ~1.2 for headings and ~1.5 for reading text, which is the ratio the
+ * spec's own bodyRead (18/30) implies.
+ */
 export const type: Record<TypeToken, TypeStyle> = {
-  display: { fontFamily: fontFamily.serifBold, fontSize: 32, lineHeight: 38 },
-  title1: { fontFamily: fontFamily.serifBold, fontSize: 24, lineHeight: 30 },
-  title2: { fontFamily: fontFamily.serifBold, fontSize: 19, lineHeight: 25 },
-  title3: { fontFamily: fontFamily.sansSemibold, fontSize: 16, lineHeight: 22 },
-  body: { fontFamily: fontFamily.sans, fontSize: 15, lineHeight: 22 },
+  display: { fontFamily: fontFamily.serifBold, fontSize: 28, lineHeight: 34, letterSpacing: -0.4 },
+  title1: { fontFamily: fontFamily.serifBold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 },
+  title2: { fontFamily: fontFamily.serifBold, fontSize: 17, lineHeight: 23, letterSpacing: -0.2 },
+  title3: { fontFamily: fontFamily.sansSemibold, fontSize: 15, lineHeight: 20, letterSpacing: -0.1 },
+  body: { fontFamily: fontFamily.sans, fontSize: 15, lineHeight: 23 },
   /** Transcript reader ONLY (§15.6). Long-form serif at a generous measure. */
   bodyRead: { fontFamily: fontFamily.serif, fontSize: 18, lineHeight: 30 },
   label: { fontFamily: fontFamily.sansMedium, fontSize: 13, lineHeight: 18 },
   caption: { fontFamily: fontFamily.sansMedium, fontSize: 11, lineHeight: 15, letterSpacing: 0.3 },
-  mono: { fontFamily: fontFamily.mono, fontSize: 13, lineHeight: 18 },
+  mono: { fontFamily: fontFamily.mono, fontSize: 12, lineHeight: 17 },
+  /** Section headers: small, tracked-out sans caps. The chrome voice (§14.2). */
+  overline: {
+    fontFamily: fontFamily.sansSemibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+  },
 };
 
 /**

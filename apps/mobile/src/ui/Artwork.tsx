@@ -44,10 +44,16 @@ export const Artwork = memo(function Artwork({
 
   return (
     <View style={[{ width: size, height: size, borderRadius, overflow: 'hidden' }, style]}>
+      {/*
+        Three stops rather than two, with the midpoint pulled off-centre. A flat two-stop
+        diagonal reads as "unstyled div"; the extra stop gives the square a light source
+        and makes a generated gradient look chosen rather than defaulted (§21 Q7).
+      */}
       <LinearGradient
-        colors={[from, to]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={[shade(from, 0.12), from, to]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
         style={{ position: 'absolute', inset: 0 }}
       />
       {uri ? (
@@ -59,6 +65,21 @@ export const Artwork = memo(function Artwork({
           style={{ width: '100%', height: '100%' }}
         />
       ) : null}
+      {/*
+        A hairline inset highlight. On a near-black background an unbordered square
+        dissolves into the page; this separates artwork from ground without a visible
+        frame, which is what "reverent, not precious" (§3.5) asks for.
+      */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.10)',
+        }}
+      />
     </View>
   );
 });

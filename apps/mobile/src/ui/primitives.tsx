@@ -88,19 +88,27 @@ export function SectionHeader({
   action?: string;
   onAction?: () => void;
 }) {
+  const colors = useColors();
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        gap: space.sm,
         marginTop: space.section,
-        marginBottom: space.xs,
+        marginBottom: space.sm,
       }}
     >
-      <Text variant="caption" color="faint" style={{ letterSpacing: 1.1, textTransform: 'uppercase' }}>
+      <Text variant="overline" color="faint" style={{ textTransform: 'uppercase' }}>
         {title}
       </Text>
+      {/*
+        A hairline rule running to the action. It costs one View and does the work three
+        blank lines of margin were doing badly — sections stop floating and the eye gets
+        a horizontal to follow. This is the editorial move that separates "app screen"
+        from "list of stuff".
+      */}
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
       {action ? (
         <Pressable onPress={onAction} hitSlop={12} accessibilityRole="button">
           <Text variant="caption" color="accent">

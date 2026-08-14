@@ -22,12 +22,32 @@ const { withAppBuildGradle, withGradleProperties } = require('expo/config-plugin
  */
 const NDK_VERSION = process.env.FEAST_NDK_VERSION ?? '27.0.12077973';
 
+/**
+ * Force the Gradle JVM onto IPv4.
+ *
+ * Symptom this fixes: dependency downloads fail intermittently with
+ * `UnknownHostException` on dl.google.com and repo.maven.apache.org, while `curl` and
+ * `nslookup` resolve the very same hosts reliably from the very same shell, seconds
+ * later. That gap is the tell — it is not the network, it is the JVM's resolver
+ * preferring an AAAA record whose route is broken. Java caches the failure, so one
+ * unlucky lookup fails a whole build ten minutes in.
+ *
+ * `preferIPv4Stack` makes the JVM ask for A records only, which matches what curl is
+ * successfully doing. Harmless where IPv6 works.
+ */
+const JVM_ARGS = '-Xmx2048m -XX:MaxMetaspaceSize=512m -Djava.net.preferIPv4Stack=true';
+
 const withNdkVersion = (config) => {
   config = withGradleProperties(config, (cfg) => {
     const properties = cfg.modResults.filter(
-      (item) => !(item.type === 'property' && item.key === 'ndkVersion'),
+      (item) =>
+        !(
+          item.type === 'property' &&
+          (item.key === 'ndkVersion' || item.key === 'org.gradle.jvmargs')
+        ),
     );
     properties.push({ type: 'property', key: 'ndkVersion', value: NDK_VERSION });
+    properties.push({ type: 'property', key: 'org.gradle.jvmargs', value: JVM_ARGS });
     cfg.modResults = properties;
     return cfg;
   });
