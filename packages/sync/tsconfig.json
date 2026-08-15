@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "paths": { "@feast/core": ["../core/src/index.ts"] }
+  },
+  "include": ["src/**/*.ts", "../core/src/**/*.ts"]
+}

@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Feast — Firestore security rules.
+//
+// The entire data model lives under users/{uid}/…, which is what lets the whole thing
+// be expressed as one rule: you may read and write your own subtree, and nothing else.
+//
+// ⚠️ Deploy these before putting anything real in the database:
+//     firebase deploy --only firestore:rules --project feast-cffb6
+//
+// A new Firebase project starts in test mode, which allows ANY authenticated user to
+// read and write EVERY document, and expires after 30 days — at which point all access
+// is denied and the app appears to break for no reason. Neither state is one to leave
+// a personal library sitting in.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Anything outside a user subtree is denied. Stated explicitly rather than relying
+    // on the default, so the intent survives someone adding a rule above it later.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
