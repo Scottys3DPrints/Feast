@@ -15,6 +15,7 @@ import { Button, Divider, Text } from '../../src/ui/primitives';
 import { useColors } from '../../src/ui/theme';
 import { space } from '../../src/ui/tokens';
 import { playbackSettings } from '../../src/player/store';
+import { useAccount, useAccountActions } from '../../src/sync/useAccount';
 
 /**
  * Settings — SPEC §15.13.
@@ -33,6 +34,8 @@ export default function SettingsScreen() {
   const [wifiOnly, setWifiOnly] = useState(playbackSettings.wifiOnlyDownloads);
   const [cellular, setCellular] = useState(playbackSettings.streamOnCellular);
   const totals = useDbQuery(() => libraryTotals(), []);
+  const account = useAccount();
+  const accountActions = useAccountActions();
 
   useEffect(() => {
     void isSignedIn().then(setSignedIn);
@@ -78,6 +81,45 @@ export default function SettingsScreen() {
             style={{ marginTop: space.xs }}
             onPress={() => void signIn().then(setSignedIn)}
           />
+        )}
+
+        <Divider />
+        <Label>Feast account</Label>
+        {/*
+          Separate from the Microsoft connection above, and deliberately so: Microsoft
+          is where the AUDIO lives, this is where your lists live. Conflating them in
+          one row would make signing out of one look like it signs out of both.
+        */}
+        {account.status === 'signed-in' ? (
+          <>
+            <Text variant="body" color="dim">
+              Signed in. Your collections, ratings and bookmarks sync to every device you
+              use this account on.
+            </Text>
+            <Button
+              title="Sign out of Feast"
+              kind="ghost"
+              style={{ marginTop: space.xs }}
+              onPress={() => void accountActions.signOut().catch(() => undefined)}
+            />
+          </>
+        ) : account.status === 'unavailable' ? (
+          <Text variant="body" color="dim">
+            Sync isn't configured in this build. Your library still works — it just stays
+            on this phone.
+          </Text>
+        ) : (
+          <>
+            <Text variant="body" color="dim">
+              Create an account to keep your lists, ratings and progress across devices.
+              Your library works without one.
+            </Text>
+            <Button
+              title="Sign in or create account"
+              style={{ marginTop: space.xs }}
+              onPress={() => router.push('/(auth)/sign-in')}
+            />
+          </>
         )}
 
         <Divider />
