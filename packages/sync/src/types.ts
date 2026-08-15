@@ -84,8 +84,18 @@ export type Unsubscribe = () => void;
 export interface SyncBackend {
   readonly id: 'firestore';
 
-  /** Resolves once an authenticated user exists, to the stable account id. */
-  signIn(): Promise<string>;
+  /**
+   * Create an account. Resolves to the stable account id.
+   *
+   * The id is what every document is namespaced under, so it is the thing that makes a
+   * second device show the same library rather than an empty one.
+   */
+  signUp(email: string, password: string): Promise<string>;
+  /** Sign in to an existing account. */
+  signIn(email: string, password: string): Promise<string>;
+  /** Send a reset email. Resolves even if the address has no account, to avoid
+   *  confirming which addresses are registered. */
+  resetPassword(email: string): Promise<void>;
   signOut(): Promise<void>;
   /** Current account id, or null when signed out. Never throws. */
   currentUserId(): string | null;

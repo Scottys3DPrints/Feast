@@ -33,9 +33,11 @@
  */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import {
+  createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
-  signInAnonymously,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signOut as fbSignOut,
   type Auth,
 } from 'firebase/auth';
@@ -119,24 +121,43 @@ export class FirestoreBackend implements SyncBackend {
   // ─── Auth ─────────────────────────────────────────────────────────────────────
 
   /**
-   * Anonymous to start with.
+   * Real accounts, email + password.
    *
-   * ⚠️ This is a placeholder and it has a real limitation: an anonymous account lives
-   * on ONE device. It gets sync working end to end, but it does not deliver the
-   * multi-device story that motivated moving to Firebase in the first place — a second
-   * phone signs in as a different anonymous user and sees an empty library.
+   * Anonymous auth was the obvious shortcut and is deliberately not used: an anonymous
+   * uid is minted per install, so a second device signs in as a *different* user and
+   * sees an empty library — which defeats the only reason to run a sync backend at all.
    *
-   * Upgrading to a real provider (Microsoft, so there is one identity for both Firebase
-   * and OneDrive) is `linkWithCredential` on this same uid, which preserves everything
-   * already written. Doing it that way round means no data migration later.
+   * Firebase persists the session to disk and refreshes it silently, so this is asked
+   * once per device and then never again.
    */
-  async signIn(): Promise<string> {
+  async signUp(email: string, password: string): Promise<string> {
     try {
-      if (this.auth.currentUser) return this.auth.currentUser.uid;
-      const cred = await signInAnonymously(this.auth);
+      const cred = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
       return cred.user.uid;
     } catch (e) {
       throw classify(e);
+    }
+  }
+
+  async signIn(email: string, password: string): Promise<string> {
+    try {
+      const cred = await signInWithEmailAndPassword(this.auth, email.trim(), password);
+      return cred.user.uid;
+    } catch (e) {
+      throw classify(e);
+    }
+  }
+
+  async resetPassword(email: string): Promise<void> {
+    try {
+      await sendPasswordResetEmail(this.auth, email.trim());
+    } catch (e) {
+      const err = classify(e);
+      // Deliberately swallowed: Firebase reports `auth/user-not-found` here, and
+      // surfacing it would turn this screen into a way to test which addresses have
+      // accounts. The user sees the same "check your email" either way.
+      if (err.message.includes('user-not-found')) return;
+      throw err;
     }
   }
 

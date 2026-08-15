@@ -20,6 +20,7 @@ import {
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { migrate } from '../src/db/client';
 import { seedDemoCatalogIfEmpty } from '../src/db/demoSeed';
+import { reconcileCache } from '../src/cache/CacheManager';
 import { reconcilePositions } from '../src/player/positionStore';
 import { flushOnBackground } from '../src/player/store';
 import { ThemeProvider, useColors } from '../src/ui/theme';
@@ -79,6 +80,9 @@ export default function RootLayout() {
       seedDemoCatalogIfEmpty();
       // §12.3 — MMKV is ahead of SQLite whenever the app was killed mid-talk.
       reconcilePositions();
+      // §11.3 — mandatory on Android, where a failed download leaves a partial file
+      // that would otherwise play as corrupt media rather than re-download.
+      reconcileCache();
       setReady(true);
     } catch (error) {
       setFatal(error instanceof Error ? error.message : String(error));

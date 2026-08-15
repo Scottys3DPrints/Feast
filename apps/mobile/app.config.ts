@@ -124,6 +124,21 @@ const config: ExpoConfig = {
   extra: {
     msClientId: MS_CLIENT_ID,
     updateManifestUrl: UPDATE_MANIFEST_URL,
+
+    // Firebase — metadata sync only. Audio never touches Firebase; it stays in
+    // OneDrive behind StorageProvider, because Storage egress (~$0.12/GB) against a
+    // 24.5 GB library that is actually listened to is the one way to make this
+    // architecture expensive.
+    //
+    // These are not secrets. A Firebase web config is embedded in every client that
+    // ships; access is controlled by the Firestore rules (firestore.rules), which scope
+    // every document to users/{uid}.
+    firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '',
+    firebaseAuthDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',
+    firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? '',
+    firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
+    firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
+    firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
   },
 };
 

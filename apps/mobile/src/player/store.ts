@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import NetInfo from '@react-native-community/netinfo';
 import { StorageError } from '@feast/storage';
 import { getStorage } from '../storage/provider';
+import { downloadTalk, touch as touchCache } from '../cache/CacheManager';
 import { sqlite } from '../db/client';
 import {
   configureAudioSession,
@@ -109,6 +110,10 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       recoveryAttempts = 0;
       player.play();
       set({ status: 'playing' });
+      // LRU ordering has to reflect actual listening, or eviction (§11.3) throws away
+      // the wrong things — a talk you replay weekly would look as stale as one you
+      // downloaded and never opened.
+      touchCache(talk.id);
     } catch (error) {
       set({ status: 'error', error: describe(error) });
     }
@@ -217,13 +222,21 @@ async function resolveSource(talk: NowPlayingTalk): Promise<{ uri: string; local
   const path = talk.streamPath ?? talk.archivePath;
   const { url } = await getStorage().getStreamUrl({ path });
 
-  // §11.2's parallel cache write lands here in Phase 3. It must obey
-  // `wifiOnlyDownloads` INDEPENDENTLY of the streaming check above — an unconditional
-  // parallel download would double cellular data usage, the exact opposite of what
-  // both settings mean.
-  //   if (!playbackSettings.wifiOnlyDownloads || net.type === 'wifi') {
-  //     cache.enqueue(talk, rendition, { priority: 'now' });
-  //   }
+  /*
+   * §11.2's parallel cache write — "stream now, cache in parallel".
+   *
+   * ⚠️ This obeys `wifiOnlyDownloads` INDEPENDENTLY of the cellular check above. They
+   * are separate switches by design (§2): cellular *streaming* is permitted while
+   * cellular *downloads* default to off. Gating this on the streaming check instead
+   * would double cellular data usage on every play — the exact opposite of what both
+   * settings mean.
+   *
+   * Fire-and-forget: a failed background cache must never break playback, which is
+   * already happily reading the remote URL.
+   */
+  if (!playbackSettings.wifiOnlyDownloads || net.type === 'wifi') {
+    void downloadTalk(talk.id, path).catch(() => undefined);
+  }
 
   return { uri: url };
 }
