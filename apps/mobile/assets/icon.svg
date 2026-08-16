@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Warm light from above-left: the same off-centre light source the artwork
+         gradients use, so the icon reads as part of the app rather than beside it. -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#1A1F2B"/>
+      <stop offset="0.55" stop-color="#0D0F14"/>
+      <stop offset="1" stop-color="#07080B"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#E8C55A"/>
+      <stop offset="0.5" stop-color="#C9A227"/>
+      <stop offset="1" stop-color="#8A6F1B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.35" cy="0.28" r="0.75">
+      <stop offset="0" stop-color="#C9A227" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#C9A227" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- An open book whose page edges rise like a waveform: the words, and the sound of
+       them. Drawn as solid shapes rather than strokes so it stays legible at 48px,
+       where thin strokes disappear. -->
+  <g transform="translate(512 528)">
+    <!-- spine -->
+    <rect x="-14" y="-232" width="28" height="404" rx="14" fill="url(#brass)"/>
+
+    <!-- left page -->
+    <path d="M -34 -214
+             C -150 -258, -268 -262, -366 -238
+             C -382 -234, -392 -220, -392 -204
+             L -392 118
+             C -392 136, -376 149, -358 146
+             C -262 128, -146 132, -34 170
+             Z"
+          fill="url(#brass)" opacity="0.92"/>
+
+    <!-- right page -->
+    <path d="M 34 -214
+             C 150 -258, 268 -262, 366 -238
+             C 382 -234, 392 -220, 392 -204
+             L 392 118
+             C 392 136, 376 149, 358 146
+             C 262 128, 146 132, 34 170
+             Z"
+          fill="url(#brass)"/>
+
+    <!-- Waveform cut into the right page — bars of rising and falling height, punched
+         out in the background colour so the mark stays one shape, not two. -->
+    <g fill="#0D0F14" opacity="0.82">
+      <rect x="96"  y="-96"  width="26" height="112" rx="13"/>
+      <rect x="150" y="-134" width="26" height="188" rx="13"/>
+      <rect x="204" y="-72"  width="26" height="64"  rx="13"/>
+      <rect x="258" y="-118" width="26" height="156" rx="13"/>
+      <rect x="312" y="-84"  width="26" height="88"  rx="13"/>
+    </g>
+
+    <!-- Matching rhythm on the left page, quieter, so the spread feels balanced
+         without competing with the waveform. -->
+    <g fill="#0D0F14" opacity="0.35">
+      <rect x="-330" y="-104" width="238" height="22" rx="11"/>
+      <rect x="-330" y="-48"  width="196" height="22" rx="11"/>
+      <rect x="-330" y="8"    width="222" height="22" rx="11"/>
+      <rect x="-330" y="64"   width="164" height="22" rx="11"/>
+    </g>
+  </g>
+</svg>

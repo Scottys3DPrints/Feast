@@ -15,6 +15,7 @@
     "ingest": "pnpm --filter @feast/ingest run dev"
   },
   "devDependencies": {
+    "sharp": "^0.35.3",
     "typescript": "~6.0.3"
   }
 }

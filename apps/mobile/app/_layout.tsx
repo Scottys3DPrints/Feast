@@ -21,6 +21,8 @@ import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { migrate } from '../src/db/client';
 import { seedDemoCatalogIfEmpty } from '../src/db/demoSeed';
 import { reconcileCache } from '../src/cache/CacheManager';
+import { getSyncBackend } from '../src/sync/backend';
+import { flush as flushSync, startSync, stopSync } from '../src/sync/engine';
 import { reconcilePositions } from '../src/player/positionStore';
 import { flushOnBackground } from '../src/player/store';
 import { ThemeProvider, useColors } from '../src/ui/theme';
@@ -112,12 +114,32 @@ export default function RootLayout() {
     setReady(true);
   }, []);
 
-  // §12.3 — one of the four durable flush points.
+  // §12.3 — one of the four durable flush points, now also pushing the outbox.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'background' || next === 'inactive') flushOnBackground();
+      if (next === 'background' || next === 'inactive') {
+        flushOnBackground();
+        void flushSync();
+      }
     });
     return () => sub.remove();
+  }, []);
+
+  /*
+   * Sync follows the account, not the app lifecycle.
+   *
+   * Starting it unconditionally at launch would attach Firestore listeners before auth
+   * has restored from disk, and every one of them would fail the security rules — which
+   * scope all documents to users/{uid}. Waiting for the auth callback means the first
+   * pull happens exactly once, with a uid in hand.
+   */
+  useEffect(() => {
+    const backend = getSyncBackend();
+    if (!backend) return;
+    return backend.onAuthChange((userId) => {
+      if (userId) startSync();
+      else stopSync();
+    });
   }, []);
 
   return (

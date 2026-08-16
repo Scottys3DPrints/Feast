@@ -1,5 +1,6 @@
 import { createMMKV } from 'react-native-mmkv';
 import { sqlite, getDeviceId } from '../db/client';
+import { recordChange } from '../sync/outbox';
 
 /**
  * Playback position persistence — SPEC §12.3, "the thing users notice".
@@ -30,8 +31,11 @@ export function readPositionFast(talkId: string): number | null {
 }
 
 /**
- * Durable write. Phase 4 adds the matching `outbox` row inside this same transaction
- * (§12.2); until then this is a local-only write and `state.json` is not yet in play.
+ * Durable write, with the matching outbox row in the SAME transaction (§12.2).
+ *
+ * The transaction is not decorative: a position that reached `listen_state` but not the
+ * outbox is a position that never syncs, and the user has no way to notice until they
+ * pick up the other device and find themselves ten minutes behind.
  */
 export function flushPosition(
   talkId: string,
@@ -41,6 +45,8 @@ export function flushPosition(
   const now = Date.now();
   const deviceId = getDeviceId();
 
+  sqlite.execSync('BEGIN');
+  try {
   sqlite.runSync(
     `INSERT INTO listen_state (talk_id, position_sec, played, play_count, completed_at, updated_at, device_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -63,6 +69,32 @@ export function flushPosition(
       now,
       deviceId,
     ],
+  );
+
+    // Changed fields only — §12.2. Sending the whole row would clobber a rating or
+    // note another device set while this one was only tracking playback position.
+    recordChange('listenState', talkId, 'upsert', {
+      talkId,
+      positionSec,
+      ...(opts.played ? { played: true, completedAt: now } : {}),
+      ...(opts.incrementPlayCount ? { playCount: currentPlayCount(talkId) } : {}),
+    });
+
+    sqlite.execSync('COMMIT');
+  } catch (e) {
+    sqlite.execSync('ROLLBACK');
+    throw e;
+  }
+}
+
+/** Read back the post-increment count, so the pushed value is absolute rather than a
+ *  delta — §12.4 merges playCount with max(), which a delta would break. */
+function currentPlayCount(talkId: string): number {
+  return (
+    sqlite.getFirstSync<{ play_count: number }>(
+      'SELECT play_count FROM listen_state WHERE talk_id = ?',
+      [talkId],
+    )?.play_count ?? 0
   );
 }
 

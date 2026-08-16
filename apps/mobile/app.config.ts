@@ -53,6 +53,7 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   scheme: 'feast',
   userInterfaceStyle: 'automatic',
+  icon: './assets/icon.png',
   // No `newArchEnabled`: §4.1 says the New Architecture is mandatory on SDK 55+ and
   // cannot be disabled, and SDK 57 has duly removed the key from the config type.
 
@@ -77,6 +78,10 @@ const config: ExpoConfig = {
     // the opt-in was removed from the config type. §4.8's requirement is satisfied by
     // the platform, not by a setting.
     adaptiveIcon: {
+      // Foreground is transparent with the mark inside Android's ~66% safe zone —
+      // adaptive icons are masked to whatever shape the OEM picks and can lose the
+      // outer third, so a full-bleed foreground would have its edges cropped away.
+      foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0D0F14',
     },
     permissions: [
