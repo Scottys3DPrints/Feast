@@ -1,0 +1,17 @@
+{
+  "name": "@feast/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "feast": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "feast": "node --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@feast/core": "workspace:*",
+    "@feast/sources": "workspace:*",
+    "firebase": "12.17.1"
+  },
+  "devDependencies": { "@types/node": "22.15.3", "typescript": "~6.0.3" }
+}

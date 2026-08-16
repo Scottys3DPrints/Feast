@@ -35,8 +35,10 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendPasswordResetEmail,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
   type Auth,
@@ -142,6 +144,24 @@ export class FirestoreBackend implements SyncBackend {
   async signIn(email: string, password: string): Promise<string> {
     try {
       const cred = await signInWithEmailAndPassword(this.auth, email.trim(), password);
+      return cred.user.uid;
+    } catch (e) {
+      throw classify(e);
+    }
+  }
+
+  /**
+   * Exchange a Google ID token for a Firebase session.
+   *
+   * If this account's email already exists as an email+password account, Firebase links
+   * the two by default rather than erroring, so a user who signed up with a password
+   * and later taps "Continue with Google" keeps the same uid — and therefore the same
+   * library, rather than silently starting an empty second one.
+   */
+  async signInWithGoogleIdToken(idToken: string): Promise<string> {
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const cred = await signInWithCredential(this.auth, credential);
       return cred.user.uid;
     } catch (e) {
       throw classify(e);

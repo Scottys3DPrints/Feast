@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Text } from '../../src/ui/primitives';
 import { useAccountActions } from '../../src/sync/useAccount';
+import { useGoogleSignIn } from '../../src/sync/useGoogleSignIn';
 import { useColors } from '../../src/ui/theme';
 import { radius, space, type as typeScale } from '../../src/ui/tokens';
 
@@ -22,6 +23,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const { signIn, signUp, resetPassword, error, busy } = useAccountActions();
+  const google = useGoogleSignIn();
 
   const submit = () => {
     setNotice(null);
@@ -83,6 +85,29 @@ export default function SignInScreen() {
             disabled={busy || !email || !password}
             style={{ marginTop: space.md, opacity: busy || !email || !password ? 0.5 : 1 }}
           />
+
+          {google.available ? (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: space.md }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+                <Text variant="caption" color="faint">
+                  or
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              </View>
+              <Button
+                title={google.busy ? 'Opening Google…' : 'Continue with Google'}
+                kind="ghost"
+                onPress={google.signIn}
+                disabled={google.busy}
+              />
+              {google.error ? (
+                <Text variant="caption" style={{ color: colors.danger, marginTop: space.xs }}>
+                  {google.error}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
 
           <Pressable
             onPress={() => {

@@ -144,6 +144,12 @@ const config: ExpoConfig = {
     firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
+
+    // Google sign-in needs BOTH: the Android id identifies the app (verified against
+    // the signing certificate, hence the SHA-1 registered in Firebase), the Web id is
+    // the audience the ID token is minted for and the one Firebase validates.
+    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
+    googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
   },
 };
 

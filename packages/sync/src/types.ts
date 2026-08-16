@@ -93,6 +93,14 @@ export interface SyncBackend {
   signUp(email: string, password: string): Promise<string>;
   /** Sign in to an existing account. */
   signIn(email: string, password: string): Promise<string>;
+  /**
+   * Sign in with a Google ID token obtained by the caller.
+   *
+   * The token is fetched by the app (which owns the OAuth redirect and the browser
+   * session) and handed here, rather than this package launching a browser — that keeps
+   * every platform concern out of the sync boundary.
+   */
+  signInWithGoogleIdToken(idToken: string): Promise<string>;
   /** Send a reset email. Resolves even if the address has no account, to avoid
    *  confirming which addresses are registered. */
   resetPassword(email: string): Promise<void>;

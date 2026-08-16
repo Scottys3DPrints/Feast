@@ -15,6 +15,25 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  apps/ingest:
+    dependencies:
+      '@feast/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@feast/sources':
+        specifier: workspace:*
+        version: link:../../packages/sources
+      firebase:
+        specifier: 12.17.1
+        version: 12.17.1
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.3
+        version: 22.15.3
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   apps/mobile:
     dependencies:
       '@expo-google-fonts/inter':
@@ -174,6 +193,19 @@ importers:
       zod:
         specifier: 3.25.76
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.3
+        version: 22.15.3
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/sources:
+    dependencies:
+      '@feast/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: 22.15.3

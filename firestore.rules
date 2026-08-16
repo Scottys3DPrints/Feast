@@ -15,6 +15,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // The shared catalog: what talks exist, and the publisher's own audio URL for each.
+    //
+    // World-readable on purpose — it is a list of public recordings and public links,
+    // holding no audio and nothing personal. That is what lets one index serve every
+    // account instead of each person re-crawling the same 6,000 talks.
+    //
+    // Writes are restricted to the maintainer's account, because the catalog is built
+    // by the desktop CLI. A compromised or buggy client must not be able to repoint an
+    // audioUrl at something that isn't the talk it claims to be.
+    match /catalog/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.email == 'samu.heslop@gmail.com'
+                   && request.auth.token.email_verified == true;
+    }
+
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
