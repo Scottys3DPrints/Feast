@@ -233,18 +233,21 @@ export function seedDemoCatalogIfEmpty(): void {
       }
     }
 
-    // A couple of cache rows so the Storage screen and residency badges have something
-    // truthful to render: one pinned, one auto-cached (§14.5).
-    sqlite.runSync(
-      `INSERT INTO cache_entries (talk_id, rendition, local_path, bytes, content_length, state, pinned, last_played_at, downloaded_at)
-       VALUES ('demo-t01', 'archive', '', ?, ?, 'complete', 1, ?, ?)`,
-      [18_900_000, 18_900_000, now, now],
-    );
-    sqlite.runSync(
-      `INSERT INTO cache_entries (talk_id, rendition, local_path, bytes, content_length, state, pinned, last_played_at, downloaded_at)
-       VALUES ('demo-t04', 'archive', '', ?, ?, 'complete', 0, ?, ?)`,
-      [138_000_000, 138_000_000, now - 86_400_000, now],
-    );
+    /*
+     * ⚠️ NO FAKE cache_entries ROWS.
+     *
+     * An earlier version seeded two here, with `local_path = ''`, so the Storage screen
+     * and the residency badges would have something to show. That was a lie about the
+     * filesystem, and it crashed the app at launch: reconcileCache() builds a
+     * `new File(local_path)` for every row, and expo-file-system THROWS
+     * `IllegalArgumentException: URI is not absolute` on an empty string rather than
+     * returning a missing-file handle. Startup runs before first paint, so the whole
+     * app died on a row invented purely for looks.
+     *
+     * The badges now correctly show every demo talk as cloud-only, which is the truth:
+     * these talks have no audio anywhere. CacheManager also guards the malformed case
+     * now, but the real fix is not to write rows that describe files that do not exist.
+     */
 
     for (const talkId of ['demo-t05', 'demo-t06', 'demo-t11']) {
       sqlite.runSync(

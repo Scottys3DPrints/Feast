@@ -74,6 +74,24 @@ function extensionFor(path: string): string {
   return (m?.[1] ?? 'mp3').toLowerCase();
 }
 
+/**
+ * Is this a path `expo-file-system` will accept?
+ *
+ * ⚠️ `new File(uri)` THROWS `IllegalArgumentException: URI is not absolute` on an empty
+ * or relative string — it does not return a non-existent file handle. Any code path
+ * that builds a File from a database column therefore has to check first, because a
+ * single malformed row is otherwise enough to take the whole app down at launch: this
+ * exact bug crashed startup, since reconcileCache() runs before first paint.
+ */
+function isUsablePath(path: string | null | undefined): path is string {
+  return typeof path === 'string' && /^[a-z]+:\/\//i.test(path);
+}
+
+/** Drop a row whose path we can never open, so it cannot crash us twice. */
+function dropRow(talkId: string, rendition: string): void {
+  sqlite.runSync(`DELETE FROM cache_entries WHERE talk_id=? AND rendition=?`, [talkId, rendition]);
+}
+
 // ─── Queries ──────────────────────────────────────────────────────────────────────
 
 export interface CacheRow {
@@ -111,6 +129,10 @@ export function cacheRow(talkId: string): CacheRow | null {
 export function localFileFor(talkId: string): string | null {
   const row = cacheRow(talkId);
   if (!row || row.state !== 'complete') return null;
+  if (!isUsablePath(row.localPath)) {
+    dropRow(talkId, row.rendition);
+    return null;
+  }
   const file = new File(row.localPath);
   if (!file.exists) {
     sqlite.runSync(`UPDATE cache_entries SET state='pending' WHERE talk_id=? AND rendition=?`, [
@@ -355,6 +377,13 @@ export function reconcileCache(): void {
   const known = new Set<string>();
 
   for (const row of rows) {
+    // A row whose path is empty or relative can never be opened. Drop it rather than
+    // letting `new File()` throw and take startup with it.
+    if (!isUsablePath(row.localPath)) {
+      dropRow(row.talkId, row.rendition);
+      continue;
+    }
+
     known.add(row.localPath);
     const file = new File(row.localPath);
 
