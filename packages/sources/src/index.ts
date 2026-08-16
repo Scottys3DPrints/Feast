@@ -6,5 +6,11 @@
  */
 export * from './types.ts';
 export * from './http.ts';
-export { GeneralConferenceAdapter, parseDurationMs, cleanSpeaker, htmlToText } from './generalConference.ts';
+export {
+  GeneralConferenceAdapter,
+  parseConferenceIndex,
+  parseDurationMs,
+  cleanSpeaker,
+  htmlToText,
+} from './generalConference.ts';
 export { ByuSpeechesAdapter, speakerFromLink, stripTags } from './byuSpeeches.ts';

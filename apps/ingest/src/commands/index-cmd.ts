@@ -57,7 +57,9 @@ export async function indexCommand(argv: string[]): Promise<void> {
     userAgent: USER_AGENT,
     minIntervalMs: 1_000,
     // A ceiling per run, so a bug in paging cannot turn into a crawl of the whole site.
-    dailyRequestLimit: 4_000,
+    // Raised from 4,000: a full archive pass is ~3,900 requests and the missing years
+    // push it past that. Still a hard stop against a paging bug becoming a crawl.
+    dailyRequestLimit: 6_000,
   });
 
   console.log('Building the catalog. No audio is downloaded — metadata and URLs only.');

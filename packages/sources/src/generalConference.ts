@@ -55,6 +55,8 @@ interface TocEntry {
   secondaryTitle?: string;
   content?: TocEntry[];
   section?: string;
+  /** Canonical leader profile URI, when the listing exposes one. */
+  speakerUri?: string;
 }
 
 export interface GeneralConferenceOptions {
@@ -201,31 +203,70 @@ export function parseConferenceIndex(html: string): TocEntry[] {
   const out: TocEntry[] = [];
   if (!html) return out;
 
-  const itemRe =
-    /<li data-content-type="general-conference-talk">\s*<a href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+  /*
+   * ⚠️ THE MARKUP IS NOT UNIFORM ACROSS 55 YEARS. Two variants, both of which broke a
+   * stricter earlier version of this parser — silently, because a conference that
+   * yields no entries just produces an empty list:
+   *
+   *   • Some years (2021–2023, 2014) emit a PLAIN `<li>` with no `data-content-type`
+   *     at all. Requiring that attribute returned zero talks for those years while
+   *     still spending every request.
+   *   • Talk entries whose speaker has a leader profile carry an extra attribute:
+   *     `<p class="primaryMeta" data-uri="/church/leader/thomas-s-monson">`. A pattern
+   *     that expected `>` straight after the class attribute lost the speaker on more
+   *     than half the archive.
+   *
+   * So: match any list item linking to a talk URI, and use `data-content-type` to
+   * EXCLUDE non-talks where it is present, falling back to the slug where it is not.
+   */
+  const itemRe = /<li([^>]*)>\s*<a href="(\/study\/general-conference\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
 
   for (const match of html.matchAll(itemRe)) {
-    const href = match[1];
-    const inner = match[2];
+    const liAttrs = match[1] ?? '';
+    const href = match[2];
+    const inner = match[3];
     if (!href || !inner) continue;
+
+    const contentType = /data-content-type="([^"]+)"/.exec(liAttrs)?.[1];
+    if (contentType && contentType !== 'general-conference-talk') continue;
 
     // Strip the ?lang= query: the URI is the identity, the language is a parameter.
     const uri = href.split('?')[0]?.replace(/^\/study/, '');
-    if (!uri) continue;
+    if (!uri || !isTalkUri(uri)) continue;
 
     const entry: TocEntry = { uri };
     const title = pickClass(inner, 'title');
     if (title) entry.title = title;
     const speaker = pickClass(inner, 'primaryMeta');
     if (speaker) entry.secondaryTitle = speaker;
+
+    // A gift from the extra attribute above: a canonical, stable speaker key that
+    // survives "Elder"/"President" prefixes and spelling drift, which is exactly what
+    // §9.4's alias table otherwise has to reconstruct by fuzzy matching.
+    const leaderUri = /<p class="primaryMeta"[^>]*data-uri="([^"]+)"/.exec(inner)?.[1];
+    if (leaderUri) entry.speakerUri = leaderUri;
+
     out.push(entry);
   }
 
   return out;
 }
 
+/** Session landing pages and auditing/statistical reports are not talks. */
+function isTalkUri(uri: string): boolean {
+  const slug = uri.split('/').filter(Boolean).pop() ?? '';
+  if (!slug) return false;
+  // `/general-conference/2022/04` itself, or a session page.
+  if (/-session$/.test(slug)) return false;
+  if (/^\d{4}$/.test(slug) || /^(04|10)$/.test(slug)) return false;
+  return uri.split('/').filter(Boolean).length >= 4;
+}
+
+/**
+ * ⚠️ `[^>]*` after the class attribute is load-bearing — see the `data-uri` note above.
+ */
 function pickClass(html: string, className: string): string | undefined {
-  const m = new RegExp(`<p class="${className}">([\\s\\S]*?)</p>`).exec(html);
+  const m = new RegExp(`<p class="${className}"[^>]*>([\\s\\S]*?)</p>`).exec(html);
   if (!m?.[1]) return undefined;
   const text = htmlToText(m[1]);
   return text || undefined;
