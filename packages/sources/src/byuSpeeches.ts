@@ -166,16 +166,32 @@ export class ByuSpeechesAdapter implements SourceAdapter {
   }
 
   /**
-   * The join: search media by surname, then match on the closest date.
+   * The join: search media by surname, then match on the date IN THE FILENAME.
    *
-   * Dates are matched within a window rather than exactly, because the media item is
-   * often uploaded a day or two either side of the speech's publish date.
+   * ⚠️ THE TRAP, AND IT COST 85% OF THE ARCHIVE.
+   *
+   * A media item's `date` field is when the FILE WAS UPLOADED, not when the talk was
+   * given. For a speech from last month those coincide. For the historical archive they
+   * are decades apart — `BYUS-Hunter-Milton-R.-1972_03_28.mp3` is a 1972 devotional
+   * uploaded in 2025. An earlier version of this method compared upload date against
+   * speech date and rejected anything more than 30 days apart, which silently discarded
+   * almost every talk older than the digitisation effort: 2,536 speeches in the archive,
+   * 385 matched.
+   *
+   * The real date is in the filename, as `YYYY_MM_DD`. That is what we match on, and it
+   * is far stronger than proximity: it is the publisher stating which talk this is.
+   *
+   * The surname is verified against the filename too, because a search for "Hunter"
+   * returns Rebecca K., Milton R. and Howard. Matching the wrong file is worse than
+   * matching none — it looks correct and plays the wrong talk.
    */
   private async findAudio(speaker: string, speechDate: string): Promise<WpMedia | null> {
     const surname = speaker.split(/\s+/).pop() ?? speaker;
     const url =
       `${API}/media?search=${encodeURIComponent(surname)}` +
-      `&per_page=20&_fields=id,date,slug,source_url,mime_type,media_details`;
+      // 100, not 20: common surnames (Smith, Bednar) have many recordings, and a short
+      // page silently hides the right one behind alphabetical neighbours.
+      `&per_page=100&_fields=id,date,slug,source_url,mime_type,media_details`;
 
     let items: WpMedia[] | null;
     try {
@@ -189,22 +205,75 @@ export class ByuSpeechesAdapter implements SourceAdapter {
     const audio = items.filter((m) => m.mime_type === 'audio/mpeg');
     if (!audio.length) return null;
 
-    const target = Date.parse(speechDate);
+    const speechDay = dayNumber(speechDate);
+    const surnameLc = surname.toLowerCase();
+
     let best: WpMedia | null = null;
-    let bestGap = Number.POSITIVE_INFINITY;
+    let bestGapDays = Number.POSITIVE_INFINITY;
 
     for (const item of audio) {
-      const gap = Math.abs(Date.parse(item.date) - target);
-      if (gap < bestGap) {
-        bestGap = gap;
+      const filename = (item.source_url ?? '').split('/').pop() ?? '';
+      if (!filename.toLowerCase().includes(surnameLc)) continue;
+
+      const fileDay = dateFromFilename(filename);
+      if (fileDay === null) continue;
+
+      const gapDays = Math.abs(fileDay - speechDay);
+      if (gapDays < bestGapDays) {
+        bestGapDays = gapDays;
         best = item;
       }
     }
 
-    // Beyond ~30 days apart it is almost certainly a different speech by the same
-    // speaker; a wrong audio file is worse than none, because it looks correct.
-    return bestGap <= 30 * 24 * 60 * 60 * 1000 ? best : null;
+    // Same day is the norm; ±3 days covers a speech published a little after it was
+    // given. Wider than that and it is a different talk by the same person.
+    if (best && bestGapDays <= 3) return best;
+
+    // Fallback for files with no date in the name: nearest upload, tightly bounded, and
+    // only when the surname matches. Better than dropping the talk, but weak enough
+    // that it must stay the exception.
+    let fallback: WpMedia | null = null;
+    let fallbackGap = Number.POSITIVE_INFINITY;
+    const target = Date.parse(speechDate);
+    for (const item of audio) {
+      const filename = (item.source_url ?? '').split('/').pop() ?? '';
+      if (!filename.toLowerCase().includes(surnameLc)) continue;
+      if (dateFromFilename(filename) !== null) continue;
+      const gap = Math.abs(Date.parse(item.date) - target);
+      if (gap < fallbackGap) {
+        fallbackGap = gap;
+        fallback = item;
+      }
+    }
+    return fallbackGap <= 7 * 24 * 60 * 60 * 1000 ? fallback : null;
   }
+}
+
+/**
+ * Pull the speech date out of a media filename, as a day number.
+ *
+ * BYU's convention is `BYUS-<Surname>-<First>-<M.>-<YYYY_MM_DD>-v<ver>.mp3`, with older
+ * digitisations as `<Surname>_<First>_<YYYY>_<M>_<D>_...`. Both put the real date of
+ * the talk in the name, which is the only trustworthy link between a speech record and
+ * its audio — the upload date is not.
+ */
+export function dateFromFilename(filename: string): number | null {
+  const m = /(\d{4})[_-](\d{1,2})[_-](\d{1,2})/.exec(filename);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  const year = Number.parseInt(y ?? '', 10);
+  const month = Number.parseInt(mo ?? '', 10);
+  const day = Number.parseInt(d ?? '', 10);
+  if (!Number.isFinite(year) || year < 1900 || month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+/** Whole days since epoch, so comparisons ignore time-of-day and timezone drift. */
+function dayNumber(iso: string): number {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? Math.floor(ms / 86_400_000) : 0;
 }
 
 /** Speaker lives in the URL path: /talks/<speaker-slug>/<speech-slug>/ */
