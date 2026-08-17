@@ -82,7 +82,10 @@ export class ByuSpeechesAdapter implements SourceAdapter {
    *
    * Audio is resolved per speech from the media endpoint, joined on surname + date.
    */
-  async discover(node: string, opts: { limit?: number } = {}): Promise<DiscoveredTalk[]> {
+  async discover(
+    node: string,
+    opts: { limit?: number; onPage?: (talks: DiscoveredTalk[]) => void | Promise<void> } = {},
+  ): Promise<DiscoveredTalk[]> {
     const limit = opts.limit ?? (node === 'recent' ? 20 : Number.MAX_SAFE_INTEGER);
     const out: DiscoveredTalk[] = [];
 
@@ -101,11 +104,27 @@ export class ByuSpeechesAdapter implements SourceAdapter {
       }
       if (!speeches?.length) break;
 
+      const pageTalks: DiscoveredTalk[] = [];
       for (const speech of speeches) {
         const talk = await this.toTalk(speech);
-        if (talk) out.push(talk);
+        if (talk) {
+          out.push(talk);
+          pageTalks.push(talk);
+        }
         if (out.length >= limit) break;
       }
+
+      /*
+       * ⚠️ Hand each page back as it completes, so the caller can persist.
+       *
+       * The full archive is ~2,000 speeches and every one costs a second request to
+       * resolve its audio, so a complete pass is 40+ minutes of deliberately slow
+       * crawling. Returning only at the end means an interruption throws all of it
+       * away — and the cost is not just our time, it is asking BYU for the same
+       * 4,000 responses over again. General Conference already saves per conference;
+       * this is the same guarantee, per page.
+       */
+      if (pageTalks.length) await opts.onPage?.(pageTalks);
 
       if (speeches.length < perPage) break;
       page += 1;

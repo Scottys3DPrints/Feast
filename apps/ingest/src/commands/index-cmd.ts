@@ -137,12 +137,20 @@ async function indexByu(
 
   try {
     const node = args.refresh ? 'recent' : 'all';
+    // Persist each page rather than only at the end — see the note in the adapter. A full
+    // pass is 40+ minutes, and losing it costs BYU the same 4,000 requests again.
     const found = await withRetry(() =>
-      adapter.discover(node, args.limit ? { limit: args.limit } : {}),
+      adapter.discover(node, {
+        ...(args.limit ? { limit: args.limit } : {}),
+        onPage: async (page) => {
+          index.byu.talks = mergeTalks(index.byu.talks, page);
+          console.log(`  +${page.length}  (${index.byu.talks.length} total)`);
+          await saveIndex(index);
+        },
+      }),
     );
     index.byu.talks = mergeTalks(index.byu.talks, found);
     index.byu.builtAt = new Date().toISOString();
-    console.log(`  +${found.length}  (${index.byu.talks.length} total)`);
     await saveIndex(index);
   } catch (e) {
     if (e instanceof RequestCeilingError) {
