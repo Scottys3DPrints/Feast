@@ -81,6 +81,29 @@ export interface SyncBatchItem {
 
 export type Unsubscribe = () => void;
 
+/**
+ * One talk as the shared catalog describes it.
+ *
+ * ⚠️ `audioUrl` is the PUBLISHER'S url — assets.churchofjesuschrist.org or
+ * speeches.byu.edu — and playback streams from there directly. No audio is stored in
+ * Firestore, which is what keeps a 5,000-talk catalog at ~2.5 MB rather than ~90 GB.
+ */
+export interface CatalogTalk {
+  externalId: string;
+  title: string;
+  speaker: string;
+  audioUrl: string;
+  sourceUrl: string;
+  source: 'general-conference' | 'byu-speeches';
+  durationSec?: number;
+  sizeBytes?: number;
+  publishedAt?: string;
+  eventName?: string;
+  sessionName?: string;
+  tags: string[];
+  updatedAt: number;
+}
+
 export interface SyncBackend {
   readonly id: 'firestore';
 
@@ -105,6 +128,19 @@ export interface SyncBackend {
    *  confirming which addresses are registered. */
   resetPassword(email: string): Promise<void>;
   signOut(): Promise<void>;
+
+  /**
+   * Read the shared catalog — what talks exist and where the publisher serves each one.
+   *
+   * Deliberately NOT scoped to an account: the catalog is world-readable, so this works
+   * before anyone signs in. Browsing the library must never require a login (§3.1 makes
+   * the local database the source of truth for reads; an account only buys sync).
+   *
+   * `since` is an epoch-ms watermark. Passing the last sync time turns a 5,000-document
+   * read into a handful, which matters because Firestore bills per document read and the
+   * free tier is 50,000 a day — one unconditional full sync per launch would burn it.
+   */
+  fetchCatalog(since?: number): Promise<CatalogTalk[]>;
   /** Current account id, or null when signed out. Never throws. */
   currentUserId(): string | null;
   /** Fires on every auth transition, including the initial restore from disk. */

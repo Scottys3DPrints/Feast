@@ -21,6 +21,7 @@ import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { migrate } from '../src/db/client';
 import { seedDemoCatalogIfEmpty } from '../src/db/demoSeed';
 import { reconcileCache } from '../src/cache/CacheManager';
+import { syncCatalog } from '../src/sync/catalogSync';
 import { getSyncBackend } from '../src/sync/backend';
 import { flush as flushSync, startSync, stopSync } from '../src/sync/engine';
 import { reconcilePositions } from '../src/player/positionStore';
@@ -112,6 +113,19 @@ export default function RootLayout() {
     }
 
     setReady(true);
+
+    /*
+     * Pull the shared catalog in the background, after first paint.
+     *
+     * Deliberately NOT awaited and NOT part of the startup gate: §3.1 makes the local
+     * database the source of truth for reads, so the library must open instantly from
+     * what is already on disk whether or not the network cooperates. A catalog sync is
+     * an enrichment, never a precondition — and it works signed out, because the
+     * catalog is world-readable.
+     */
+    void syncCatalog().catch((error: unknown) => {
+      console.warn('[startup] catalog sync failed:', error);
+    });
   }, []);
 
   // §12.3 — one of the four durable flush points, now also pushing the outbox.

@@ -220,7 +220,17 @@ async function resolveSource(talk: NowPlayingTalk): Promise<{ uri: string; local
 
   // 5 — prefer the compact stream rendition when one exists (§2, §11.2).
   const path = talk.streamPath ?? talk.archivePath;
-  const { url } = await getStorage().getStreamUrl({ path });
+
+  /*
+   * Catalog talks carry an absolute URL rather than a provider-relative path.
+   *
+   * General Conference and BYU audio is already public and needs no signing, so
+   * resolving it through the StorageProvider would be a pointless Graph round trip —
+   * and would fail, because the file isn't in OneDrive at all. The shape of the value
+   * is the discriminator: a scheme means "play this directly".
+   */
+  const isAbsolute = /^https?:\/\//i.test(path);
+  const url = isAbsolute ? path : (await getStorage().getStreamUrl({ path })).url;
 
   /*
    * §11.2's parallel cache write — "stream now, cache in parallel".

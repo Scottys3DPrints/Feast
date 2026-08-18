@@ -49,12 +49,14 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
+  orderBy,
   query,
   where,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import type {
+  CatalogTalk,
   SyncBackend,
   SyncBatchItem,
   SyncChange,
@@ -86,6 +88,27 @@ export function compositeId(...parts: string[]): string {
  * remember, and turning `undefined` into `null` would corrupt the LWW merge — a null
  * means "explicitly cleared", which is not what a missing optional means.
  */
+/**
+ * Coerce a Firestore field to a string, defensively.
+ *
+ * Documents are written by a separate tool and read by every client, so a field that is
+ * missing or the wrong type must degrade to a blank rather than throw — one malformed
+ * document should never take out an entire catalog sync.
+ */
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : '';
+}
+
+function num(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  // Firestore hands integers back as strings through some transports.
+  if (typeof v === 'string' && v.trim() !== '') {
+    const parsed = Number(v);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
@@ -163,6 +186,58 @@ export class FirestoreBackend implements SyncBackend {
       const credential = GoogleAuthProvider.credential(idToken);
       const cred = await signInWithCredential(this.auth, credential);
       return cred.user.uid;
+    } catch (e) {
+      throw classify(e);
+    }
+  }
+
+  /**
+   * Read the shared catalog, newest changes first.
+   *
+   * `orderBy('updatedAt')` with a `where` on the same field is the one shape Firestore
+   * can serve from a single-field index — anything else would need a composite index
+   * declared up front, and a missing index fails at runtime rather than at build.
+   */
+  async fetchCatalog(since?: number): Promise<CatalogTalk[]> {
+    try {
+      const talks = collection(this.db, 'catalog', 'v1', 'talks');
+      const q =
+        since && since > 0
+          ? query(talks, where('updatedAt', '>', since), orderBy('updatedAt', 'asc'))
+          : query(talks, orderBy('updatedAt', 'asc'));
+
+      const snap = await getDocs(q);
+      const out: CatalogTalk[] = [];
+
+      for (const docSnap of snap.docs) {
+        const d = docSnap.data() as Record<string, unknown>;
+        const externalId = typeof d['externalId'] === 'string' ? d['externalId'] : docSnap.id;
+        const audioUrl = typeof d['audioUrl'] === 'string' ? d['audioUrl'] : '';
+        // A catalog entry with no audio URL is unplayable, and a row the user can see
+        // but never hear is worse than one that isn't there.
+        if (!audioUrl) continue;
+
+        const talk: CatalogTalk = {
+          externalId,
+          title: str(d['title']) || 'Untitled',
+          speaker: str(d['speaker']),
+          audioUrl,
+          sourceUrl: str(d['sourceUrl']),
+          source: d['source'] === 'byu-speeches' ? 'byu-speeches' : 'general-conference',
+          tags: Array.isArray(d['tags']) ? (d['tags'] as string[]) : [],
+          updatedAt: num(d['updatedAt']) ?? 0,
+        };
+        const duration = num(d['durationSec']);
+        if (duration !== undefined) talk.durationSec = duration;
+        const size = num(d['sizeBytes']);
+        if (size !== undefined) talk.sizeBytes = size;
+        if (str(d['publishedAt'])) talk.publishedAt = str(d['publishedAt']);
+        if (str(d['eventName'])) talk.eventName = str(d['eventName']);
+        if (str(d['sessionName'])) talk.sessionName = str(d['sessionName']);
+        out.push(talk);
+      }
+
+      return out;
     } catch (e) {
       throw classify(e);
     }
