@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, MoreHorizontal, Pin, Play } from 'lucide-react-native';
+import { Check, ChevronLeft, Download, MoreHorizontal, Play, Star } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { formatBytes, formatDuration } from '@feast/core';
-import { getTalk } from '../../src/db/queries';
+import { getTalk, talksBySpeaker } from '../../src/db/queries';
+import { addBookmark, listenStateFor, setPlayed, setRating } from '../../src/db/mutations';
+import { downloadTalk, isDownloaded } from '../../src/cache/CacheManager';
 import { useDbQuery } from '../../src/db/useDbQuery';
 import { toNowPlaying } from '../../src/features/TalkRow';
 import { Artwork } from '../../src/ui/Artwork';
@@ -31,6 +35,18 @@ export default function TalkDetailScreen() {
   const playTalk = usePlayer((s) => s.playTalk);
   const seekTo = usePlayer((s) => s.seekTo);
   const nowPlayingId = usePlayer((s) => s.talk?.id);
+  const position = usePlayer((s) => s.position);
+
+  // Local echo so the row reacts instantly; the DB is still the source of truth and
+  // useDbQuery re-reads on the next change notification.
+  const [tick, setTick] = useState(0);
+  const state = useDbQuery(() => (id ? listenStateFor(id) : null), [id, tick]);
+  const downloaded = useDbQuery(() => (id ? isDownloaded(id) : false), [id, tick]) ?? false;
+  const more = useDbQuery(
+    () => (talk?.speakerId ? talksBySpeaker(talk.speakerId, 8).filter((t) => t.id !== talk.id) : []),
+    [talk?.speakerId, talk?.id],
+  ) ?? [];
+  const bump = () => setTick((n) => n + 1);
 
   if (!talk) {
     return (
@@ -100,21 +116,111 @@ export default function TalkDetailScreen() {
             onPress={() => void playTalk(toNowPlaying(talk))}
             style={{ flex: 2 }}
           />
-          {/* Pinning lands in Phase 3 with the CacheManager (§11.3). */}
           <Button
-            title="Pin"
+            title={downloaded ? 'Downloaded' : 'Download'}
             kind="ghost"
-            icon={<Pin size={16} color={colors.text} strokeWidth={1.75} />}
+            icon={
+              downloaded ? (
+                <Check size={16} color={colors.positive} strokeWidth={2} />
+              ) : (
+                <Download size={16} color={colors.text} strokeWidth={1.75} />
+              )
+            }
             style={{ flex: 1 }}
-            disabled
+            disabled={downloaded}
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              // Pinned: an explicit download is Tier 3 and must never be LRU-evicted (§2).
+              void downloadTalk(talk.id, talk.streamPath ?? talk.archivePath, { pinned: true })
+                .then(bump)
+                .catch(() => bump());
+            }}
           />
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: space.sm, flexWrap: 'wrap' }}>
-          {talk.rating ? <Chip label={'★'.repeat(talk.rating)} selected /> : null}
-          {talk.played ? <Chip label="Played" /> : null}
+        {/* §15.6's secondary action row: rate, bookmark, mark played. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.md }}>
+          {([1, 2, 3, 4, 5] as const).map((n) => (
+            <Pressable
+              key={n}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={`Rate ${n} star${n === 1 ? '' : 's'}`}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                // Tapping the current rating clears it — otherwise a mis-tap is permanent.
+                setRating(talk.id, state?.rating === n ? null : n);
+                bump();
+              }}
+            >
+              <Star
+                size={26}
+                strokeWidth={1.75}
+                color={state?.rating && n <= state.rating ? colors.accent : colors.textFaint}
+                fill={state?.rating && n <= state.rating ? colors.accent : 'transparent'}
+              />
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.sm, flexWrap: 'wrap' }}>
+          <Pressable
+            onPress={() => {
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              addBookmark(talk.id, nowPlayingId === talk.id ? position : 0);
+              bump();
+            }}
+            accessibilityRole="button"
+          >
+            <Chip label="Bookmark" />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void Haptics.selectionAsync();
+              setPlayed(talk.id, !state?.played);
+              bump();
+            }}
+            accessibilityRole="button"
+          >
+            <Chip label={state?.played ? 'Played' : 'Mark played'} selected={state?.played} />
+          </Pressable>
           {talk.sessionName ? <Chip label={talk.sessionName} /> : null}
         </View>
+
+        {more.length ? (
+          <>
+            <Text
+              variant="overline"
+              color="faint"
+              style={{ textTransform: 'uppercase', marginTop: space.lg, marginBottom: space.xs }}
+            >
+              More from {talk.speakerName}
+            </Text>
+            {more.map((other) => (
+              <Pressable
+                key={other.id}
+                onPress={() => router.push(`/talk/${other.id}`)}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 8 }}
+              >
+                <Artwork
+                  seed={other.speakerId ?? other.id}
+                  color={other.artworkColor}
+                  uri={other.artworkPath}
+                  size={40}
+                />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="title3" numberOfLines={1}>
+                    {other.title}
+                  </Text>
+                  <Text variant="caption" color="faint" numberOfLines={1}>
+                    {other.eventName ?? ''}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </>
+        ) : null}
 
         {paragraphs.length ? (
           <>

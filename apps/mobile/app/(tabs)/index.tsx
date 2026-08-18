@@ -6,6 +6,11 @@ import {
   continueListening,
   countTalks,
   fromFiveStar,
+  latestEvent,
+  randomTalks,
+  shortTalks,
+  talksByEvent,
+  topSpeakers,
   inProgress,
   libraryTotals,
   needsAttentionCount,
@@ -41,6 +46,23 @@ export default function HomeScreen() {
   const recent = useDbQuery(() => recentlyAdded(), []) ?? [];
   const fiveStar = useDbQuery(() => fromFiveStar(), []) ?? [];
   const attention = useDbQuery(() => needsAttentionCount(), []) ?? 0;
+
+  /*
+   * Browse sections, for a library with no listening history yet.
+   *
+   * Every section above this point is driven by what you have already played, which
+   * renders an almost-blank screen the day a 5,000-talk catalog first syncs. These give
+   * Home something to offer on day one and quietly become less prominent as the
+   * history-driven sections fill in.
+   */
+  const event = useDbQuery(() => latestEvent(), []);
+  const eventTalks = useDbQuery(
+    () => (event ? talksByEvent(event.eventName, 20) : []),
+    [event?.eventName],
+  ) ?? [];
+  const speakers = useDbQuery(() => topSpeakers(14), []) ?? [];
+  const shorts = useDbQuery(() => shortTalks(), []) ?? [];
+  const surprise = useDbQuery(() => randomTalks(), []) ?? [];
 
   if (total === 0) return <EmptyLibrary />;
 
@@ -118,6 +140,38 @@ export default function HomeScreen() {
           <>
             <SectionHeader title="From your Greatest of All" />
             <HorizontalRail talks={fiveStar} />
+          </>
+        ) : null}
+
+        {event && eventTalks.length ? (
+          <>
+            <SectionHeader
+              title={event.eventName}
+              action="See all →"
+              onAction={() => router.push('/library')}
+            />
+            <HorizontalRail talks={eventTalks} />
+          </>
+        ) : null}
+
+        {speakers.length ? (
+          <>
+            <SectionHeader title="Speakers" action="See all →" onAction={() => router.push('/library')} />
+            <SpeakerRail speakers={speakers} />
+          </>
+        ) : null}
+
+        {shorts.length ? (
+          <>
+            <SectionHeader title="Under 15 minutes" />
+            <HorizontalRail talks={shorts} />
+          </>
+        ) : null}
+
+        {surprise.length ? (
+          <>
+            <SectionHeader title="Something to listen to" />
+            <HorizontalRail talks={surprise} />
           </>
         ) : null}
 
@@ -229,6 +283,36 @@ function ResumeCard({ talk }: { talk: TalkListItem }) {
         <Play size={22} color={colors.onAccent} fill={colors.onAccent} strokeWidth={0} />
       </Pressable>
     </Pressable>
+  );
+}
+
+/** Circular speaker chips — the fastest way into a library this size. */
+function SpeakerRail({
+  speakers,
+}: {
+  speakers: { id: string; name: string; count: number; color: string }[];
+}) {
+  const router = useRouter();
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+      {speakers.map((s) => (
+        <Pressable
+          key={s.id}
+          onPress={() => router.push(`/speaker/${s.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={`${s.name}, ${s.count} talks`}
+          style={{ width: 92, alignItems: 'center' }}
+        >
+          <Artwork seed={s.id} color={s.color} size={72} rounded />
+          <Text variant="caption" numberOfLines={2} style={{ marginTop: 6, textAlign: 'center' }}>
+            {s.name}
+          </Text>
+          <Text variant="caption" color="faint">
+            {s.count}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
   );
 }
 

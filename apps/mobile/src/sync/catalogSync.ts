@@ -19,6 +19,7 @@
  *    updates rather than duplicating, and the user's ratings and collection memberships
  *    — which reference talk ids — survive every catalog refresh.
  */
+import { classifySpeaker } from '@feast/core';
 import type { CatalogTalk } from '@feast/sync';
 import { getSyncBackend } from './backend';
 import { getMeta, setMeta, sqlite } from '../db/client';
@@ -97,13 +98,29 @@ export async function syncCatalog(opts: { force?: boolean } = {}): Promise<Catal
       const slug = speakerSlug(talk.speaker);
       const color = colorFor(slug);
 
-      // Speakers are derived, not published: the catalog stores a display name per talk,
-      // and the speaker row is whatever that name implies. `INSERT OR IGNORE` keeps any
-      // richer record an earlier import already created (role, succession order).
+      /*
+       * Speakers are derived, not published: the catalog stores a display name per talk,
+       * and the speaker row is whatever that name implies.
+       *
+       * ⚠️ Role matters more than it looks. Library → Speakers is SECTIONED by role
+       * (§15.3: Prophets first by succession order, then Apostles, then everyone else).
+       * Inserting every catalog speaker as 'other' — which the first version did —
+       * leaves both of those sections empty and buries Nelson alphabetically among 561
+       * names. classifySpeaker only recognises Presidents and the Twelve and returns
+       * 'other' for everyone else, because a wrong calling is worse than an unstated one.
+       *
+       * The UPDATE deliberately never downgrades: a role learned from the archive's own
+       * folder structure (§9.4, which also carries succession order) is better evidence
+       * than a name lookup, so it wins.
+       */
+      const { role, successionOrder } = classifySpeaker(talk.speaker);
       sqlite.runSync(
-        `INSERT OR IGNORE INTO speakers (id, name, sort_name, role, aliases, gradient_seed)
-         VALUES (?, ?, ?, 'other', '[]', ?)`,
-        [slug, talk.speaker || 'Unknown', sortNameFor(talk.speaker), color],
+        `INSERT INTO speakers (id, name, sort_name, role, succession_order, aliases, gradient_seed)
+         VALUES (?, ?, ?, ?, ?, '[]', ?)
+         ON CONFLICT(id) DO UPDATE SET
+           role = CASE WHEN speakers.role = 'other' THEN excluded.role ELSE speakers.role END,
+           succession_order = COALESCE(speakers.succession_order, excluded.succession_order)`,
+        [slug, talk.speaker || 'Unknown', sortNameFor(talk.speaker), role, successionOrder ?? null, color],
       );
 
       const existing = sqlite.getFirstSync<{ id: string }>(`SELECT id FROM talks WHERE id = ?`, [
@@ -192,4 +209,44 @@ export function catalogTalkCount(): number {
     `SELECT COUNT(*) AS n FROM talks WHERE source IN ('general-conference','byu-speeches')`,
   );
   return row?.n ?? 0;
+}
+
+/**
+ * Re-classify speakers already in the database.
+ *
+ * ⚠️ Needed because the catalog sync is incremental. Once the watermark has advanced,
+ * a later run fetches nothing and therefore never revisits the 561 speaker rows already
+ * written — so a fix to `classifySpeaker` would only reach speakers discovered in
+ * future, and Prophets/Apostles would stay empty forever on this device.
+ *
+ * Cheap (hundreds of rows, no network) and idempotent, so it simply runs at startup.
+ * Only ever promotes from 'other': a role learned from the archive's folder structure
+ * (§9.4) is stronger evidence than a name lookup and must not be overwritten.
+ */
+export function reclassifySpeakers(): number {
+  const rows = sqlite.getAllSync<{ id: string; name: string }>(
+    `SELECT id, name FROM speakers WHERE role = 'other'`,
+  );
+  if (!rows.length) return 0;
+
+  let changed = 0;
+  sqlite.execSync('BEGIN');
+  try {
+    for (const row of rows) {
+      const { role, successionOrder } = classifySpeaker(row.name);
+      if (role === 'other') continue;
+      sqlite.runSync(
+        `UPDATE speakers
+         SET role = ?, succession_order = COALESCE(succession_order, ?)
+         WHERE id = ?`,
+        [role, successionOrder ?? null, row.id],
+      );
+      changed += 1;
+    }
+    sqlite.execSync('COMMIT');
+  } catch (e) {
+    sqlite.execSync('ROLLBACK');
+    throw e;
+  }
+  return changed;
 }

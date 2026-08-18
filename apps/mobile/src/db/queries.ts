@@ -382,3 +382,77 @@ export function needsAttentionCount(): number {
   );
   return row?.n ?? 0;
 }
+
+// ─── Browse entry points ──────────────────────────────────────────────────────────
+//
+// ⚠️ WHY THESE EXIST. Every §15.2 Home section is driven by listening history —
+// Continue, Up Next, Pick up where you left off, From your Greatest of All. That is the
+// right design for a library you have lived in for years, and completely wrong for one
+// you just synced: with 5,000 talks and no history, Home renders three cards and an
+// ocean of black. The first screen has to offer a way IN, not a summary of a past that
+// does not exist yet.
+
+/** A random sample, so Home always has something to offer. Cheap at this scale. */
+export function randomTalks(limit = 12): TalkListItem[] {
+  const rows = sqlite.getAllSync<RawTalkRow>(
+    `${TALK_SELECT}
+     WHERE t.missing_since IS NULL AND t.duration_sec > 0
+     ORDER BY RANDOM()
+     LIMIT ?`,
+    [limit],
+  );
+  return rows.map(toItem);
+}
+
+/** Short talks — the "I have fifteen minutes" entry point. */
+export function shortTalks(maxSec = 900, limit = 12): TalkListItem[] {
+  const rows = sqlite.getAllSync<RawTalkRow>(
+    `${TALK_SELECT}
+     WHERE t.missing_since IS NULL
+       AND t.duration_sec BETWEEN 120 AND ?
+       AND ls.played IS NOT 1
+     ORDER BY RANDOM()
+     LIMIT ?`,
+    [maxSec, limit],
+  );
+  return rows.map(toItem);
+}
+
+/** The most recent conference, by name, so Home leads with something current. */
+export function latestEvent(): { eventName: string; count: number } | null {
+  return (
+    sqlite.getFirstSync<{ eventName: string; count: number }>(
+      `SELECT event_name AS eventName, COUNT(*) AS count
+       FROM talks
+       WHERE missing_since IS NULL AND event_name IS NOT NULL AND recorded_year IS NOT NULL
+       GROUP BY event_name
+       ORDER BY MAX(recorded_year) DESC, MAX(published_at) DESC
+       LIMIT 1`,
+    ) ?? null
+  );
+}
+
+export function talksByEvent(eventName: string, limit = 30): TalkListItem[] {
+  const rows = sqlite.getAllSync<RawTalkRow>(
+    `${TALK_SELECT}
+     WHERE t.missing_since IS NULL AND t.event_name = ?
+     ORDER BY t.published_at ASC, t.title ASC
+     LIMIT ?`,
+    [eventName, limit],
+  );
+  return rows.map(toItem);
+}
+
+/** Speakers with the most talks — the natural "where do I start" list. */
+export function topSpeakers(limit = 12): { id: string; name: string; count: number; color: string }[] {
+  return sqlite.getAllSync<{ id: string; name: string; count: number; color: string }>(
+    `SELECT s.id, s.name, COUNT(t.id) AS count, s.gradient_seed AS color
+     FROM speakers s
+     JOIN talks t ON t.speaker_id = s.id AND t.missing_since IS NULL
+     WHERE s.id != 'unknown'
+     GROUP BY s.id
+     ORDER BY count DESC
+     LIMIT ?`,
+    [limit],
+  );
+}

@@ -21,7 +21,7 @@ import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { migrate } from '../src/db/client';
 import { seedDemoCatalogIfEmpty } from '../src/db/demoSeed';
 import { reconcileCache } from '../src/cache/CacheManager';
-import { syncCatalog } from '../src/sync/catalogSync';
+import { reclassifySpeakers, syncCatalog } from '../src/sync/catalogSync';
 import { getSyncBackend } from '../src/sync/backend';
 import { flush as flushSync, startSync, stopSync } from '../src/sync/engine';
 import { reconcilePositions } from '../src/player/positionStore';
@@ -104,6 +104,9 @@ export default function RootLayout() {
       // §11.3 — mandatory on Android, where a failed download leaves a partial file
       // that would otherwise play as corrupt media rather than re-download.
       ['cache', reconcileCache],
+      // Promotes catalog speakers out of 'other' so Library's Prophets/Apostles
+      // sections fill in. Incremental sync would otherwise never revisit them.
+      ['speaker-roles', reclassifySpeakers],
     ] as const) {
       try {
         step();

@@ -214,3 +214,142 @@ export const UNKNOWN_SPEAKER: Speaker = {
   aliases: [],
   gradientSeed: 'unknown',
 };
+
+// ─── Role classification for catalog talks ────────────────────────────────────────
+//
+// ⚠️ WHY A TABLE AND NOT A HEURISTIC.
+//
+// §9.4 derives role from the archive's folder structure — `By Speaker/Prophets/17 …`
+// tells you both the role and the succession order for free. Catalog talks arrive from
+// a public API with a display name and nothing else, so that signal does not exist and
+// there is nothing to infer from: a talk's session does not imply the speaker's calling,
+// and neither does its length or year.
+//
+// So this is a curated list, which is honest about being one. It is deliberately narrow:
+// Presidents of the Church (whose succession order is a fact, not a judgement) and
+// members of the Quorum of the Twelve. Everyone else stays `other` rather than being
+// guessed at — a wrong calling is worse than an unstated one.
+//
+// Names are matched after canonicalization, so "President Nelson" and "Russell M Nelson"
+// both resolve.
+
+/** Presidents of the Church, by succession order. */
+const PRESIDENTS: ReadonlyArray<readonly [number, string]> = [
+  [1, 'Joseph Smith'],
+  [2, 'Brigham Young'],
+  [3, 'John Taylor'],
+  [4, 'Wilford Woodruff'],
+  [5, 'Lorenzo Snow'],
+  [6, 'Joseph F. Smith'],
+  [7, 'Heber J. Grant'],
+  [8, 'George Albert Smith'],
+  [9, 'David O. McKay'],
+  [10, 'Joseph Fielding Smith'],
+  [11, 'Harold B. Lee'],
+  [12, 'Spencer W. Kimball'],
+  [13, 'Ezra Taft Benson'],
+  [14, 'Howard W. Hunter'],
+  [15, 'Gordon B. Hinckley'],
+  [16, 'Thomas S. Monson'],
+  [17, 'Russell M. Nelson'],
+];
+
+/**
+ * Members of the Quorum of the Twelve who appear in the archive.
+ *
+ * Includes those who later became President — the lookup checks PRESIDENTS first, so
+ * the more specific role wins.
+ */
+const APOSTLES: readonly string[] = [
+  'Dallin H. Oaks',
+  'Henry B. Eyring',
+  'Jeffrey R. Holland',
+  'Dieter F. Uchtdorf',
+  'David A. Bednar',
+  'Quentin L. Cook',
+  'D. Todd Christofferson',
+  'Neil L. Andersen',
+  'Ronald A. Rasband',
+  'Gary E. Stevenson',
+  'Dale G. Renlund',
+  'Gerrit W. Gong',
+  'Ulisses Soares',
+  'Patrick Kearon',
+  'Neal A. Maxwell',
+  'Bruce R. McConkie',
+  'Boyd K. Packer',
+  'L. Tom Perry',
+  'Richard G. Scott',
+  'Robert D. Hales',
+  'M. Russell Ballard',
+  'Joseph B. Wirthlin',
+  'James E. Faust',
+  'Marvin J. Ashton',
+  'Howard W. Hunter',
+  'Mark E. Petersen',
+  'LeGrand Richards',
+  'Delbert L. Stapley',
+  'Marion G. Romney',
+  'Ezra Taft Benson',
+  'Spencer W. Kimball',
+  'Harold B. Lee',
+];
+
+const presidentByKey = new Map<string, number>(
+  PRESIDENTS.map(([order, name]) => [speakerSlug(name), order]),
+);
+const apostleKeys = new Set<string>(APOSTLES.map((name) => speakerSlug(name)));
+
+export interface RoleAssignment {
+  role: SpeakerRole;
+  successionOrder?: number;
+}
+
+/**
+ * Classify a speaker by display name.
+ *
+ * Returns `other` for anyone not on the curated lists, which is most people and is the
+ * correct answer — the alternative is inventing callings for 500 names.
+ */
+export function classifySpeaker(name: string): RoleAssignment {
+  const cleaned = stripHonorific(normalizeName(name));
+  const key = speakerSlug(cleaned);
+
+  const order = presidentByKey.get(key);
+  if (order !== undefined) return { role: 'prophet', successionOrder: order };
+  if (apostleKeys.has(key)) return { role: 'apostle' };
+
+  /*
+   * Surname-only form ("President Nelson" → "Nelson"), which §9.4's alias table calls
+   * out explicitly.
+   *
+   * ⚠️ Resolved ONLY when the surname is unambiguous across both lists. "Nelson" maps to
+   * exactly one person; "Smith" maps to four Presidents alone, and guessing which would
+   * attribute a talk to the wrong prophet. Ambiguity falls through to `other`, which is
+   * merely unhelpful rather than wrong.
+   */
+  if (!cleaned.includes(' ')) {
+    const matches = SURNAME_INDEX.get(key);
+    if (matches?.length === 1) return matches[0]!;
+  }
+
+  return { role: 'other' };
+}
+
+/** surname slug → every role it could mean. Length > 1 means "refuse to guess". */
+const SURNAME_INDEX: ReadonlyMap<string, RoleAssignment[]> = (() => {
+  const index = new Map<string, RoleAssignment[]>();
+  const add = (fullName: string, assignment: RoleAssignment) => {
+    const key = speakerSlug(surname(fullName));
+    const list = index.get(key);
+    if (list) list.push(assignment);
+    else index.set(key, [assignment]);
+  };
+  for (const [order, name] of PRESIDENTS) add(name, { role: 'prophet', successionOrder: order });
+  for (const name of APOSTLES) {
+    // Skip anyone already recorded as a President — the same human, the higher role.
+    if (presidentByKey.has(speakerSlug(name))) continue;
+    add(name, { role: 'apostle' });
+  }
+  return index;
+})();
