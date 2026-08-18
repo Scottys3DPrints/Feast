@@ -90,6 +90,7 @@ export class ByuSpeechesAdapter implements SourceAdapter {
     const out: DiscoveredTalk[] = [];
 
     let page = 1;
+    let consecutiveFailures = 0;
     while (out.length < limit) {
       const perPage = Math.min(100, limit - out.length);
       const url = `${API}/speech?per_page=${perPage}&orderby=date&order=desc&page=${page}`;
@@ -98,9 +99,24 @@ export class ByuSpeechesAdapter implements SourceAdapter {
       try {
         const res = await this.client.getJson<WpSpeech[]>(url);
         speeches = res.data;
-      } catch {
-        // WordPress answers 400 past the last page rather than an empty array.
-        break;
+        consecutiveFailures = 0;
+      } catch (e) {
+        /*
+         * ⚠️ Only a 400 means "past the last page". Anything else is a transient
+         * failure and must be retried, not treated as the end of the archive.
+         *
+         * An earlier version caught everything and broke. One blip on page 21 ended
+         * the crawl silently at 20 of 26 pages — it reported success, having never
+         * looked at ~536 speeches. A crawl that stops early and says nothing is worse
+         * than one that fails loudly.
+         */
+        const message = e instanceof Error ? e.message : String(e);
+        if (/→ 400/.test(message)) break;
+
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 3) throw e;
+        await new Promise((r) => setTimeout(r, 2000 * consecutiveFailures));
+        continue;
       }
       if (!speeches?.length) break;
 
