@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Button, Text } from '../../src/ui/primitives';
-import { useAccountActions } from '../../src/sync/useAccount';
+import { useAccount, useAccountActions } from '../../src/sync/useAccount';
 import { useGoogleSignIn } from '../../src/sync/useGoogleSignIn';
 import { useColors } from '../../src/ui/theme';
 import { radius, space, type as typeScale } from '../../src/ui/tokens';
@@ -18,12 +19,28 @@ import { radius, space, type as typeScale } from '../../src/ui/tokens';
  */
 export default function SignInScreen() {
   const colors = useColors();
+  const router = useRouter();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
-  const { signIn, signUp, resetPassword, error, busy } = useAccountActions();
+  const { signIn, signUp, resetPassword, error, busy, clearError } = useAccountActions();
   const google = useGoogleSignIn();
+
+  /*
+   * ⚠️ Leave the screen once the account exists.
+   *
+   * Without this the sign-in succeeds and the form just… sits there, looking exactly
+   * like a failure. The user has no way to tell a working sign-in from a broken one, so
+   * they try again, hit "there is already an account with that email", and reasonably
+   * conclude the whole thing is broken. It wasn't — only the feedback was missing.
+   */
+  const account = useAccount();
+  useEffect(() => {
+    if (account.status !== 'signed-in') return;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }, [account.status, router]);
 
   const submit = () => {
     setNotice(null);
@@ -32,6 +49,15 @@ export default function SignInScreen() {
       /* surfaced through `error` */
     });
   };
+
+  /** A stale error from the other mode is just noise once you've switched. */
+  const switchMode = () => {
+    setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
+    setNotice(null);
+    clearError();
+  };
+
+  const disabled = busy || !email || !password;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -82,8 +108,8 @@ export default function SignInScreen() {
           <Button
             title={busy ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
             onPress={submit}
-            disabled={busy || !email || !password}
-            style={{ marginTop: space.md, opacity: busy || !email || !password ? 0.5 : 1 }}
+            disabled={disabled}
+            style={{ marginTop: space.md, opacity: disabled ? 0.5 : 1 }}
           />
 
           {google.available ? (
@@ -110,10 +136,7 @@ export default function SignInScreen() {
           ) : null}
 
           <Pressable
-            onPress={() => {
-              setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
-              setNotice(null);
-            }}
+            onPress={switchMode}
             style={{ marginTop: space.md, alignItems: 'center' }}
             accessibilityRole="button"
           >

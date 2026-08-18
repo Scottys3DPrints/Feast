@@ -9,20 +9,51 @@
  * ⚠️ NO AUDIO. Not here, not anywhere. The catalog is a card index pointing at files
  * the publishers already serve.
  */
+import { readFileSync } from 'node:fs';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getFirestore, writeBatch } from 'firebase/firestore';
 import type { DiscoveredTalk } from '@feast/sources';
 import { allTalks, loadIndex, saveIndex } from '../sourceIndex.ts';
 
-const FIREBASE = {
-  apiKey: process.env['FEAST_FIREBASE_API_KEY'] ?? '',
-  authDomain: process.env['FEAST_FIREBASE_AUTH_DOMAIN'] ?? '',
-  projectId: process.env['FEAST_FIREBASE_PROJECT_ID'] ?? '',
-  storageBucket: process.env['FEAST_FIREBASE_STORAGE_BUCKET'] ?? '',
-  messagingSenderId: process.env['FEAST_FIREBASE_MESSAGING_SENDER_ID'] ?? '',
-  appId: process.env['FEAST_FIREBASE_APP_ID'] ?? '',
-};
+/**
+ * Firebase config, from the environment or — failing that — the app's own `.env.local`.
+ *
+ * Reusing the app's file means one place to keep these in step, and no ceremony of
+ * exporting six variables before a push. They are not secrets: a Firebase web config
+ * ships inside every client. Access is controlled by firestore.rules, which pins
+ * catalog writes to a single account UID.
+ */
+function readFirebaseConfig(): Record<string, string> {
+  const fromEnv = {
+    apiKey: process.env['FEAST_FIREBASE_API_KEY'] ?? '',
+    authDomain: process.env['FEAST_FIREBASE_AUTH_DOMAIN'] ?? '',
+    projectId: process.env['FEAST_FIREBASE_PROJECT_ID'] ?? '',
+    storageBucket: process.env['FEAST_FIREBASE_STORAGE_BUCKET'] ?? '',
+    messagingSenderId: process.env['FEAST_FIREBASE_MESSAGING_SENDER_ID'] ?? '',
+    appId: process.env['FEAST_FIREBASE_APP_ID'] ?? '',
+  };
+  if (fromEnv.apiKey && fromEnv.projectId) return fromEnv;
+
+  try {
+    const path = new URL('../../../mobile/.env.local', import.meta.url);
+    const text = readFileSync(path, 'utf8');
+    const get = (key: string): string =>
+      new RegExp(`^${key}=(.*)$`, 'm').exec(text)?.[1]?.trim() ?? '';
+    return {
+      apiKey: get('EXPO_PUBLIC_FIREBASE_API_KEY'),
+      authDomain: get('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+      projectId: get('EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
+      storageBucket: get('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+      messagingSenderId: get('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+      appId: get('EXPO_PUBLIC_FIREBASE_APP_ID'),
+    };
+  } catch {
+    return fromEnv;
+  }
+}
+
+const FIREBASE = readFirebaseConfig();
 
 /** Firestore ids may not contain '/', and externalIds are URI-shaped. */
 function docId(externalId: string): string {
@@ -52,8 +83,46 @@ function toCatalogDoc(talk: DiscoveredTalk, now: number): Record<string, unknown
   return out;
 }
 
+/**
+ * Ask for the password without echoing it, and without it landing in shell history or
+ * an environment variable. `FEAST_PASSWORD` stays supported for unattended runs.
+ */
+async function promptPassword(prompt: string): Promise<string> {
+  const { createInterface } = await import('node:readline');
+  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+
+  return new Promise((resolve) => {
+    const stdout = process.stdout as NodeJS.WriteStream & { muted?: boolean };
+    stdout.muted = false;
+    // Swallow the echoed characters while muted, but keep the prompt itself visible.
+    const write = stdout.write.bind(stdout);
+    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s: string) => {
+      if (stdout.muted) write('');
+      else write(s);
+    };
+    rl.question(prompt, (answer) => {
+      stdout.muted = false;
+      write('\n');
+      rl.close();
+      resolve(answer);
+    });
+    stdout.muted = true;
+  });
+}
+
 export async function pushCommand(argv: string[]): Promise<void> {
   const dryRun = argv.includes('--dry-run');
+  /**
+   * Transcripts are OPT-IN, deliberately.
+   *
+   * Metadata is a list of public recordings and public links — publishing it shares
+   * nothing that isn't already public. A transcript is the publisher's text, and
+   * `catalog/` is world-readable, so including them publishes a searchable copy of
+   * every General Conference transcript to anyone with the app. That is a materially
+   * bigger step, it is far harder to walk back than to delay, and neither publisher has
+   * been asked. So the flag defaults to off and has to be typed on purpose.
+   */
+  const withTranscripts = argv.includes('--with-transcripts');
   const index = await loadIndex();
   const talks = allTalks(index);
 
@@ -73,7 +142,9 @@ export async function pushCommand(argv: string[]): Promise<void> {
 
   console.log(`Catalog:     ${talks.length} talks, ${(metaBytes / 1024 / 1024).toFixed(1)} MB`);
   console.log(
-    `Transcripts: ${transcripts.length}, ${(transcriptBytes / 1024 / 1024).toFixed(1)} MB (separate collection)`,
+    withTranscripts
+      ? `Transcripts: ${transcripts.length}, ${(transcriptBytes / 1024 / 1024).toFixed(1)} MB — PUBLISHED (world-readable)`
+      : `Transcripts: ${transcripts.length} held back locally (${(transcriptBytes / 1024 / 1024).toFixed(1)} MB). Pass --with-transcripts to publish.`,
   );
   console.log('Audio:       0 bytes — streamed from the publishers.\n');
 
@@ -83,13 +154,11 @@ export async function pushCommand(argv: string[]): Promise<void> {
   }
 
   const email = process.env['FEAST_EMAIL'];
-  const password = process.env['FEAST_PASSWORD'];
-  if (!email || !password) {
-    throw new Error(
-      'Set FEAST_EMAIL and FEAST_PASSWORD for the maintainer account.\n' +
-        '  Firestore rules only allow catalog writes from that verified address.',
-    );
+  if (!email) {
+    throw new Error('Set FEAST_EMAIL to the maintainer account address.');
   }
+  const password = process.env['FEAST_PASSWORD'] ?? (await promptPassword(`Password for ${email}: `));
+  if (!password) throw new Error('No password given.');
   if (!FIREBASE.apiKey || !FIREBASE.projectId) {
     throw new Error('Set FEAST_FIREBASE_* environment variables (see apps/ingest/README.md).');
   }
@@ -110,7 +179,7 @@ export async function pushCommand(argv: string[]): Promise<void> {
     for (const talk of chunk) {
       const id = docId(talk.externalId);
       batch.set(doc(db, 'catalog', 'v1', 'talks', id), toCatalogDoc(talk, now), { merge: true });
-      if (talk.transcript) {
+      if (withTranscripts && talk.transcript) {
         batch.set(
           doc(db, 'catalog', 'v1', 'transcripts', id),
           { talkId: talk.externalId, text: talk.transcript, updatedAt: now },

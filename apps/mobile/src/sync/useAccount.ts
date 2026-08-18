@@ -39,7 +39,11 @@ export interface AccountActions {
   signOut(): Promise<void>;
 }
 
-export function useAccountActions(): AccountActions & { error: string | null; busy: boolean } {
+export function useAccountActions(): AccountActions & {
+  error: string | null;
+  busy: boolean;
+  clearError: () => void;
+} {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -59,6 +63,7 @@ export function useAccountActions(): AccountActions & { error: string | null; bu
   return {
     error,
     busy,
+    clearError: () => setError(null),
     signUp: (email, password) =>
       run(() => required().signUp(email, password)).then(() => undefined),
     signIn: (email, password) =>

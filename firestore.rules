@@ -26,9 +26,17 @@ service cloud.firestore {
     // audioUrl at something that isn't the talk it claims to be.
     match /catalog/{document=**} {
       allow read: if true;
+
+      // Pinned to a UID rather than an email.
+      //
+      // The email check needed `email_verified` to mean anything, because Firebase does
+      // not verify an address at sign-up — without that flag, anyone could register
+      // under someone else's address and inherit write access. A UID has no such
+      // weakness: it is minted by Firebase, belongs to exactly one account, and cannot
+      // be claimed or spoofed. So this is both stricter and simpler, and it drops the
+      // requirement to click a verification link before publishing the catalog.
       allow write: if request.auth != null
-                   && request.auth.token.email == 'samu.heslop@gmail.com'
-                   && request.auth.token.email_verified == true;
+                   && request.auth.uid == 'W1ArTF76hXZ1Z4D6LlVB0nEAIbJ2';
     }
 
     match /users/{userId}/{document=**} {
